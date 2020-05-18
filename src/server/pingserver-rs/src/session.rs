@@ -61,6 +61,11 @@ impl Session {
 		self.buffer.rx_buffer()
 	}
 
+	/// Return true if there are still bytes in the tx buffer
+	pub fn tx_pending(&self) -> bool {
+		self.buffer.tx_pending()
+	}
+
 	/// Clear the buffer
 	pub fn clear_buffer(&mut self) {
 		self.buffer.clear()

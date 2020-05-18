@@ -1,12 +1,8 @@
-// Copyright 2019-2020 Twitter, Inc.
+// Copyright 2019 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// TODO(bmartin): unify the implementation below with the one in rpc-perf and
-// share between codebases
-
 #![deny(clippy::all)]
-#![allow(dead_code)]
 
 use bytes::{Buf, BufMut, BytesMut};
 use log::*;
@@ -81,10 +77,8 @@ impl Buffer {
         self.rx.borrow()
     }
 
-    /// return a mutable reference to the tx buffer
-    /// use to write bytes to the buffer without copying
-    pub fn tx_buffer(&mut self) -> &mut BytesMut {
-        &mut self.tx
+    pub fn tx_pending(&self) -> bool {
+        !self.tx.is_empty()
     }
 }
 
@@ -107,7 +101,7 @@ impl Read for Buffer {
 }
 
 pub trait TryRead {
-    fn try_read_buf(&mut self, buf: &mut BytesMut) -> io::Result<Option<usize>>
+    fn try_read_buf<B: BufMut>(&mut self, buf: &mut B) -> io::Result<Option<usize>>
     where
         Self: Sized,
     {
@@ -116,7 +110,7 @@ pub trait TryRead {
         // If your protocol is msg based (instead of continuous stream) you should
         // ensure that your buffer is large enough to hold an entire segment
         // (1532 bytes if not jumbo frames)
-        let res = self.try_read(buf);
+        let res = self.try_read(unsafe { buf.bytes_mut() });
 
         if let Ok(Some(cnt)) = res {
             unsafe {

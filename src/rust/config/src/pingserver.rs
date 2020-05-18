@@ -1,53 +1,78 @@
+// Copyright 2020 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 use crate::*;
 
+use serde::{Serialize, Deserialize};
+
+use std::io::Read;
+
+// constants to define default values
 const DAEMONIZE: bool = false;
 const PID_FILENAME: Option<String> = None;
 const DLOG_INTERVAL: usize = 500;
 
+// helper functions
+fn daemonize() -> bool {
+	DAEMONIZE
+}
+
+fn pid_filename() -> Option<String> {
+	PID_FILENAME
+}
+
+fn dlog_interval() -> usize {
+	DLOG_INTERVAL
+}
+
+// struct definitions
+#[derive(Serialize, Deserialize, Debug)]
 pub struct PingserverConfig {
 	// top-level
+	#[serde(default = "daemonize")]
 	daemonize: bool,
+	#[serde(default = "pid_filename")]
 	pid_filename: Option<String>,
+	#[serde(default = "dlog_interval")]
 	dlog_interval: usize,
 
 	// application modules
-	admin_config: AdminConfig,
-	server_config: ServerConfig,
-	worker_config: WorkerConfig,
-	time_config: TimeConfig,
+	#[serde(default)]
+	admin: AdminConfig,
+	#[serde(default)]
+	server: ServerConfig,
+	#[serde(default)]
+	worker: WorkerConfig,
+	#[serde(default)]
+	time: TimeConfig,
 
 	// ccommon
-	array_config: ArrayConfig,
-	buf_config: BufConfig,
-	dbuf_config: DbufConfig,
-	debug_config: DebugConfig,
-	sockio_config: SockioConfig,
-	tcp_config: TcpConfig,
+	#[serde(default)]
+	buf: BufConfig,
+	#[serde(default)]
+	debug: DebugConfig,
+	#[serde(default)]
+	sockio: SockioConfig,
+	#[serde(default)]
+	tcp: TcpConfig,
 }
 
-impl Default for PingserverConfig {
-	fn default() -> Self {
-		Self {
-			daemonize: DAEMONIZE,
-			pid_filename: PID_FILENAME,
-			dlog_interval: DLOG_INTERVAL,
-
-			admin_config: Default::default(),
-			server_config: Default::default(),
-			worker_config: Default::default(),
-			time_config: Default::default(),
-
-			array_config: Default::default(),
-			buf_config: Default::default(),
-			dbuf_config: Default::default(),
-			debug_config: Default::default(),
-			sockio_config: Default::default(),
-			tcp_config: Default::default(),
-		}
-	}
-}
-
+// implementation
 impl PingserverConfig {
+	pub fn load(file: &str) -> Result<PingserverConfig, std::io::Error> {
+		let mut file = std::fs::File::open(file)?;
+        let mut content = String::new();
+        file.read_to_string(&mut content)?;
+        match toml::from_str(&content) {
+        	Ok(t) => Ok(t),
+        	Err(e) => {
+        		error!("{}", e);
+        		Err(std::io::Error::new(std::io::ErrorKind::Other, "Error parsing config"))
+        	}
+        }
+	}
+
 	pub fn daemonize(&self) -> bool {
 		self.daemonize
 	}
@@ -60,43 +85,57 @@ impl PingserverConfig {
 		self.dlog_interval
 	}
 
-	pub fn admin_config(&self) -> &AdminConfig {
-		&self.admin_config
+	pub fn admin(&self) -> &AdminConfig {
+		&self.admin
 	}
 
-	pub fn server_config(&self) -> &ServerConfig {
-		&self.server_config
+	pub fn server(&self) -> &ServerConfig {
+		&self.server
 	}
 
-	pub fn worker_config(&self) -> &WorkerConfig {
-		&self.worker_config
+	pub fn worker(&self) -> &WorkerConfig {
+		&self.worker
 	}
 
-	pub fn time_config(&self) -> &TimeConfig {
-		&self.time_config
+	pub fn time(&self) -> &TimeConfig {
+		&self.time
 	}
 
-	pub fn array_config(&self) -> &ArrayConfig {
-		&self.array_config
+	pub fn buf(&self) -> &BufConfig {
+		&self.buf
 	}
 
-	pub fn buf_config(&self) -> &BufConfig {
-		&self.buf_config
+	pub fn debug(&self) -> &DebugConfig {
+		&self.debug
 	}
 
-	pub fn dbuf_config(&self) -> &DbufConfig {
-		&self.dbuf_config
+	pub fn sockio(&self) -> &SockioConfig {
+		&self.sockio
 	}
 
-	pub fn debuf_config(&self) -> &DebugConfig {
-		&self.debug_config
-	}
-
-	pub fn sockio_config(&self) -> &SockioConfig {
-		&self.sockio_config
-	}
-
-	pub fn tcp_config(&self) -> &TcpConfig {
-		&self.tcp_config
+	pub fn tcp(&self) -> &TcpConfig {
+		&self.tcp
 	}
 }
+
+// trait implementations
+impl Default for PingserverConfig {
+	fn default() -> Self {
+		Self {
+			daemonize: daemonize(),
+			pid_filename: pid_filename(),
+			dlog_interval: dlog_interval(),
+
+			admin: Default::default(),
+			server: Default::default(),
+			worker: Default::default(),
+			time: Default::default(),
+
+			buf: Default::default(),
+			debug: Default::default(),
+			sockio: Default::default(),
+			tcp: Default::default(),
+		}
+	}
+}
+
