@@ -22,7 +22,7 @@ fn nbuf() -> usize {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct StatsLogConfig {
-	#[cfg_attr(feature = "serde", serde(default = "file"))]
+    #[cfg_attr(feature = "serde", serde(default = "file"))]
     file: Option<String>,
     #[cfg_attr(feature = "serde", serde(default = "nbuf"))]
     nbuf: usize,

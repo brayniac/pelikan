@@ -1,4 +1,4 @@
-// Copyright 2020 Twitter, Inc.
+// Copyright 2020-2021 Twitter, Inc.
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -17,6 +17,7 @@ mod stats_log;
 mod tcp;
 mod time;
 mod tls;
+mod twemcache;
 mod worker;
 
 pub use admin::AdminConfig;
@@ -29,6 +30,7 @@ pub use server::ServerConfig;
 pub use sockio::SockioConfig;
 pub use stats_log::StatsLogConfig;
 pub use tcp::TcpConfig;
-pub use time::TimeConfig;
+pub use time::{TimeConfig, TimeType};
 pub use tls::TlsConfig;
+pub use twemcache::TwemcacheConfig;
 pub use worker::WorkerConfig;

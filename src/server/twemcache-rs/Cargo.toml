@@ -1,0 +1,53 @@
+[package]
+name = "pelikan_twemcache_rs"
+version = "0.0.1"
+authors = ["Brian Martin <bmartin@twitter.com>"]
+edition = "2018"
+description = "a memcache compatible unified cache backend written in Rust"
+license = "Apache-2.0"
+
+[lib]
+name = "pelikan_twemcache_rs"
+path = "src/lib.rs"
+doc = true
+
+[[bin]]
+name = "pelikan_twemcache_rs"
+path = "src/main.rs"
+doc = false
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+harness = false
+
+[[bench]]
+name = "benchmark"
+path = "benches/benchmark.rs"
+harness = false
+
+[features]
+default = ["metrics"]
+metrics = []
+
+[dependencies]
+ahash = "0.6.2"
+boring = "1.0.3"
+bytes = "1.0.0"
+chrono = "0.4.19"
+config = { path = "../../rust/config" }
+fxhash = "0.2.1"
+libc = "0.2.83"
+mio = { version = "0.7.7", features = ["os-poll", "tcp"] }
+rand = "0.8.0"
+rustcommon-logger = { git = "https://github.com/brayniac/rustcommon", branch = "fastmetrics" }
+rustcommon-fastmetrics = { git = "https://github.com/brayniac/rustcommon", branch = "fastmetrics" }
+rustls = "0.19.0"
+slab = "0.4.2"
+strum = "0.20.0"
+strum_macros = "0.20.1"
+sysconf = "0.3.4"
+thiserror = "1.0.23"
+
+[dev-dependencies]
+criterion = "0.3"

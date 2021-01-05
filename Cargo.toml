@@ -18,13 +18,23 @@ members = [
     "src/rust-util/pelikan-sys",
     "src/rustcore",
     "src/server/pingserver-rs",
+    "src/server/rds-rs",
     "src/server/twemcache-http",
+    "src/server/twemcache-rs",
     "src/storage/cdb/cdbgen",
     "src/storage/cdb/cdb_rs",
     "test/server/twemcache-http"
 ]
 
 [profile.release]
+opt-level = 3
+debug = true
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+
+[profile.bench]
 opt-level = 3
 debug = true
 rpath = false

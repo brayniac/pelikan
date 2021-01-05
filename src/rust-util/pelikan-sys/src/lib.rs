@@ -335,7 +335,7 @@ pub mod data_structure {
     }
 
     #[cfg(feature = "ds_smap")]
-    pub mod smap{
+    pub mod smap {
         include!(concat!(env!("OUT_DIR"), "/ds_smap.rs"));
     }
 

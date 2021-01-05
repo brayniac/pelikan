@@ -15,8 +15,8 @@
 use cc_binding as bind;
 use ccommon_rs::bstring::BStr;
 
-use crate::{cdb_handle, Reader, Result};
 use super::load_bytes_at_path;
+use crate::{cdb_handle, Reader, Result};
 
 use env_logger; // TODO: switch to cc_log_rs
 
