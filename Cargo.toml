@@ -18,11 +18,11 @@ members = [
     "src/rust-util/pelikan-sys",
     "src/rustcore",
     "src/server/pingserver-rs",
-    "src/server/rds-rs",
     "src/server/twemcache-http",
     "src/server/twemcache-rs",
     "src/storage/cdb/cdbgen",
     "src/storage/cdb/cdb_rs",
+    "src/storage/segcache",
     "test/server/twemcache-http"
 ]
 

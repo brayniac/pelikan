@@ -69,6 +69,17 @@ fn main() {
         &[("get 0\r\n", Some("VALUE 0 0 1\r\n2\r\nEND\r\n"))],
     );
     test("get value (key: 2)", &[("get 2\r\n", Some("END\r\n"))]);
+
+    // test storing and retrieving flags
+    test(
+        "set value (key: 3)",
+        &[("set 3 42 0 1\r\n1\r\n", Some("STORED\r\n"))],
+    );
+    test(
+        "get value (key: 3)",
+        &[("get 3\r\n", Some("VALUE 3 42 1\r\n1\r\nEND\r\n"))],
+    );
+
     test("quit", &[("quit\r\n", Some(""))]);
 
     // shutdown server and join

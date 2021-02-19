@@ -5,6 +5,10 @@
 #[macro_use]
 extern crate rustcommon_logger;
 
+#[macro_use]
+extern crate rustcommon_fastmetrics;
+
+use crate::worker::CacheHasher;
 use std::net::SocketAddr;
 use std::sync::mpsc::*;
 use std::sync::Arc;
@@ -35,7 +39,7 @@ use crate::worker::Worker;
 pub struct TwemcacheBuilder {
     admin: Admin,
     server: Server,
-    worker: Worker,
+    worker: Worker<CacheHasher>,
 }
 
 /// A structure which represents a running twemcache.
@@ -76,19 +80,19 @@ impl TwemcacheBuilder {
         };
 
         // initialize admin
-        let admin = Admin::new(config.clone(), metrics.clone()).unwrap_or_else(|e| {
+        let admin = Admin::new(config.clone()).unwrap_or_else(|e| {
             error!("{}", e);
             std::process::exit(1);
         });
 
         // initialize worker
-        let worker = Worker::new(config.clone(), metrics.clone()).unwrap_or_else(|e| {
+        let worker = Worker::new(config.clone()).unwrap_or_else(|e| {
             error!("{}", e);
             std::process::exit(1);
         });
 
         // initialize server
-        let server = Server::new(config, metrics, worker.session_sender()).unwrap_or_else(|e| {
+        let server = Server::new(config, worker.session_sender()).unwrap_or_else(|e| {
             error!("{}", e);
             std::process::exit(1);
         });

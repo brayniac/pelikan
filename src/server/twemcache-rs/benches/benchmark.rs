@@ -44,20 +44,198 @@ fn get_benchmark(c: &mut Criterion) {
         })
     });
 
-    assert!(stream.write(b"set 0 0 0 1\r\n0\r\n").is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response: {:?}", &buffer[0..bytes]);
-        }
-    } else {
-        panic!("read error");
-    }
+    // assert!(stream.write(b"set 0 0 0 1\r\n0\r\n").is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response: {:?}", &buffer[0..bytes]);
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
 
-    group.bench_function("get/1b/1b", |b| {
+    // group.bench_function("get/1b/1b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes] != b"VALUE 0 0 1\r\n0\r\nEND\r\n" {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // assert!(stream.write(b"set 0 0 0 2\r\n01\r\n").is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response");
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
+
+    // group.bench_function("get/1b/2b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes] != b"VALUE 0 0 2\r\n01\r\nEND\r\n" {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // assert!(stream.write(b"set 0 0 0 4\r\n0123\r\n").is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response");
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
+
+    // group.bench_function("get/1b/4b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes] != b"VALUE 0 0 4\r\n0123\r\nEND\r\n" {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // assert!(stream.write(b"set 0 0 0 8\r\n01234567\r\n").is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response");
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
+
+    // group.bench_function("get/1b/8b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes] != b"VALUE 0 0 8\r\n01234567\r\nEND\r\n" {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // assert!(stream
+    //     .write(b"set 0 0 0 16\r\n0123456789ABCDEF\r\n")
+    //     .is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response");
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
+
+    // group.bench_function("get/1b/16b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes] != b"VALUE 0 0 16\r\n0123456789ABCDEF\r\nEND\r\n" {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // assert!(stream
+    //     .write(b"set 0 0 0 32\r\n0123456789ABCDEF0123456789ABCDEF\r\n")
+    //     .is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response");
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
+
+    // group.bench_function("get/1b/32b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes]
+    //                 != b"VALUE 0 0 32\r\n0123456789ABCDEF0123456789ABCDEF\r\nEND\r\n"
+    //             {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // assert!(stream
+    //     .write(
+    //         b"set 0 0 0 64\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\n"
+    //     )
+    //     .is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response");
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
+
+    // group.bench_function("get/1b/64b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes] != b"VALUE 0 0 64\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\nEND\r\n" {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // assert!(stream.write(b"set 0 0 0 128\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\n").is_ok());
+    // if let Ok(bytes) = stream.read(&mut buffer) {
+    //     if &buffer[0..bytes] != b"STORED\r\n" {
+    //         panic!("invalid response");
+    //     }
+    // } else {
+    //     panic!("read error");
+    // }
+
+    // group.bench_function("get/1b/128b", |b| {
+    //     b.iter(|| {
+    //         assert!(stream.write(b"get 0\r\n").is_ok());
+    //         if let Ok(bytes) = stream.read(&mut buffer) {
+    //             if &buffer[0..bytes] != b"VALUE 0 0 128\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\nEND\r\n" {
+    //                 panic!("invalid response");
+    //             }
+    //         } else {
+    //             panic!("read error");
+    //         }
+    //     })
+    // });
+
+    // benchmark getting empty value for a 8b key
+    group.bench_function("get/8b/0b", |b| {
         b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
+            assert!(stream.write(b"get 01234567\r\n").is_ok());
             if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes] != b"VALUE 0 0 1\r\n0\r\nEND\r\n" {
+                if &buffer[0..bytes] != b"END\r\n" {
                     panic!("invalid response");
                 }
             } else {
@@ -66,20 +244,12 @@ fn get_benchmark(c: &mut Criterion) {
         })
     });
 
-    assert!(stream.write(b"set 0 0 0 2\r\n01\r\n").is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response");
-        }
-    } else {
-        panic!("read error");
-    }
-
-    group.bench_function("get/1b/2b", |b| {
+    // benchmark getting empty value for a 16b key
+    group.bench_function("get/16b/0b", |b| {
         b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
+            assert!(stream.write(b"get 0123456789ABCDEF\r\n").is_ok());
             if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes] != b"VALUE 0 0 2\r\n01\r\nEND\r\n" {
+                if &buffer[0..bytes] != b"END\r\n" {
                     panic!("invalid response");
                 }
             } else {
@@ -88,20 +258,14 @@ fn get_benchmark(c: &mut Criterion) {
         })
     });
 
-    assert!(stream.write(b"set 0 0 0 4\r\n0123\r\n").is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response");
-        }
-    } else {
-        panic!("read error");
-    }
-
-    group.bench_function("get/1b/4b", |b| {
+    // benchmark getting empty value for a 32b key
+    group.bench_function("get/32b/0b", |b| {
         b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
+            assert!(stream
+                .write(b"get 0123456789ABCDEF0123456789ABCDEF\r\n")
+                .is_ok());
             if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes] != b"VALUE 0 0 4\r\n0123\r\nEND\r\n" {
+                if &buffer[0..bytes] != b"END\r\n" {
                     panic!("invalid response");
                 }
             } else {
@@ -110,20 +274,14 @@ fn get_benchmark(c: &mut Criterion) {
         })
     });
 
-    assert!(stream.write(b"set 0 0 0 8\r\n01234567\r\n").is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response");
-        }
-    } else {
-        panic!("read error");
-    }
-
-    group.bench_function("get/1b/8b", |b| {
+    // benchmark getting empty value for a 64b key
+    group.bench_function("get/64b/0b", |b| {
         b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
+            assert!(stream
+                .write(b"get 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\n")
+                .is_ok());
             if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes] != b"VALUE 0 0 8\r\n01234567\r\nEND\r\n" {
+                if &buffer[0..bytes] != b"END\r\n" {
                     panic!("invalid response");
                 }
             } else {
@@ -132,22 +290,12 @@ fn get_benchmark(c: &mut Criterion) {
         })
     });
 
-    assert!(stream
-        .write(b"set 0 0 0 16\r\n0123456789ABCDEF\r\n")
-        .is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response");
-        }
-    } else {
-        panic!("read error");
-    }
-
-    group.bench_function("get/1b/16b", |b| {
+    // benchmark getting empty value for a 64b key
+    group.bench_function("get/128b/0b", |b| {
         b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
+            assert!(stream.write(b"get 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\n").is_ok());
             if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes] != b"VALUE 0 0 16\r\n0123456789ABCDEF\r\nEND\r\n" {
+                if &buffer[0..bytes] != b"END\r\n" {
                     panic!("invalid response");
                 }
             } else {
@@ -156,72 +304,12 @@ fn get_benchmark(c: &mut Criterion) {
         })
     });
 
-    assert!(stream
-        .write(b"set 0 0 0 32\r\n0123456789ABCDEF0123456789ABCDEF\r\n")
-        .is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response");
-        }
-    } else {
-        panic!("read error");
-    }
-
-    group.bench_function("get/1b/32b", |b| {
+    // benchmark getting empty value for a 128b key
+    group.bench_function("get/255b/0b", |b| {
         b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
+            assert!(stream.write(b"get 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDE\r\n").is_ok());
             if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes]
-                    != b"VALUE 0 0 32\r\n0123456789ABCDEF0123456789ABCDEF\r\nEND\r\n"
-                {
-                    panic!("invalid response");
-                }
-            } else {
-                panic!("read error");
-            }
-        })
-    });
-
-    assert!(stream
-        .write(
-            b"set 0 0 0 64\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\n"
-        )
-        .is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response");
-        }
-    } else {
-        panic!("read error");
-    }
-
-    group.bench_function("get/1b/64b", |b| {
-        b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
-            if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes] != b"VALUE 0 0 64\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\nEND\r\n" {
-                    panic!("invalid response");
-                }
-            } else {
-                panic!("read error");
-            }
-        })
-    });
-
-    assert!(stream.write(b"set 0 0 0 128\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\n").is_ok());
-    if let Ok(bytes) = stream.read(&mut buffer) {
-        if &buffer[0..bytes] != b"STORED\r\n" {
-            panic!("invalid response");
-        }
-    } else {
-        panic!("read error");
-    }
-
-    group.bench_function("get/1b/128b", |b| {
-        b.iter(|| {
-            assert!(stream.write(b"get 0\r\n").is_ok());
-            if let Ok(bytes) = stream.read(&mut buffer) {
-                if &buffer[0..bytes] != b"VALUE 0 0 128\r\n0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\r\nEND\r\n" {
+                if &buffer[0..bytes] != b"END\r\n" {
                     panic!("invalid response");
                 }
             } else {

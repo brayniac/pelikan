@@ -4,6 +4,7 @@
 
 use crate::event_loop::EventLoop;
 use crate::metrics::Metrics;
+use crate::metrics::*;
 use crate::session::*;
 use crate::*;
 
@@ -23,7 +24,6 @@ pub struct Server {
     sender: SyncSender<Session>,
     ssl_context: Option<SslContext>,
     sessions: Slab<Session>,
-    metrics: Arc<Metrics>,
     message_receiver: Receiver<Message>,
     message_sender: SyncSender<Message>,
 }
@@ -33,11 +33,7 @@ pub const LISTENER_TOKEN: usize = usize::MAX;
 impl Server {
     /// Creates a new `Server` that will bind to a given `addr` and push new
     /// `Session`s over the `sender`
-    pub fn new(
-        config: Arc<Config>,
-        metrics: Arc<Metrics>,
-        sender: SyncSender<Session>,
-    ) -> Result<Self, std::io::Error> {
+    pub fn new(config: Arc<Config>, sender: SyncSender<Session>) -> Result<Self, std::io::Error> {
         let addr = config.server().socket_addr().map_err(|e| {
             error!("{}", e);
             std::io::Error::new(std::io::ErrorKind::Other, "Bad listen address")
@@ -76,7 +72,6 @@ impl Server {
             sender,
             ssl_context,
             sessions,
-            metrics,
             message_sender,
             message_receiver,
         })
@@ -94,12 +89,12 @@ impl Server {
 
         // repeatedly run accepting new connections and moving them to the worker
         loop {
-            let _ = self.metrics.increment_counter(Stat::ServerEventLoop, 1);
+            increment_counter!(&Stat::ServerEventLoop);
             if self.poll.poll(&mut events, timeout).is_err() {
                 error!("Error polling server");
             }
-            let _ = self.metrics.increment_counter(
-                Stat::ServerEventTotal,
+            increment_counter_by!(
+                &Stat::ServerEventTotal,
                 events.iter().count().try_into().unwrap(),
             );
 
@@ -107,51 +102,47 @@ impl Server {
             for event in events.iter() {
                 if event.token() == Token(LISTENER_TOKEN) {
                     while let Ok((stream, addr)) = self.listener.accept() {
+                        // disable Nagle's algorithm
+                        let _ = stream.set_nodelay(true);
+
                         // handle TLS if it is configured
                         if let Some(ssl_context) = &self.ssl_context {
                             match Ssl::new(&ssl_context).map(|v| v.accept(stream)) {
                                 // handle case where we have a fully-negotiated
                                 // TLS stream on accept()
                                 Ok(Ok(tls_stream)) => {
-                                    let session =
-                                        Session::tls(addr, tls_stream, self.metrics.clone());
+                                    let session = Session::tls(addr, tls_stream);
                                     trace!("accepted new session: {}", addr);
                                     if self.sender.send(session).is_err() {
                                         error!("error sending session to worker");
-                                        let _ =
-                                            self.metrics().increment_counter(Stat::TcpAcceptEx, 1);
+                                        increment_counter!(&Stat::TcpAcceptEx);
                                     }
                                 }
                                 // handle case where further negotiation is
                                 // needed
                                 Ok(Err(HandshakeError::WouldBlock(tls_stream))) => {
-                                    let mut session = Session::handshaking(
-                                        addr,
-                                        tls_stream,
-                                        self.metrics.clone(),
-                                    );
+                                    let mut session = Session::handshaking(addr, tls_stream);
                                     let s = self.sessions.vacant_entry();
                                     let token = s.key();
                                     session.set_token(Token(token));
                                     if session.register(&self.poll).is_ok() {
                                         s.insert(session);
                                     } else {
-                                        let _ =
-                                            self.metrics().increment_counter(Stat::TcpAcceptEx, 1);
+                                        increment_counter!(&Stat::TcpAcceptEx);
                                     }
                                 }
                                 // some other error has occurred and we drop the
                                 // stream
                                 Ok(Err(_)) | Err(_) => {
-                                    let _ = self.metrics().increment_counter(Stat::TcpAcceptEx, 1);
+                                    increment_counter!(&Stat::TcpAcceptEx);
                                 }
                             }
                         } else {
-                            let session = Session::plain(addr, stream, self.metrics.clone());
+                            let session = Session::plain(addr, stream);
                             trace!("accepted new session: {}", addr);
                             if self.sender.send(session).is_err() {
                                 error!("error sending session to worker");
-                                let _ = self.metrics().increment_counter(Stat::TcpAcceptEx, 1);
+                                increment_counter!(&Stat::TcpAcceptEx);
                             }
                         };
                     }
@@ -161,20 +152,20 @@ impl Server {
 
                     // handle error events first
                     if event.is_error() {
-                        let _ = self.metrics().increment_counter(Stat::ServerEventError, 1);
+                        increment_counter!(&Stat::ServerEventError);
                         self.handle_error(token);
                     }
 
                     // handle write events before read events to reduce write
                     // buffer growth if there is also a readable event
                     if event.is_writable() {
-                        let _ = self.metrics.increment_counter(Stat::ServerEventWrite, 1);
+                        increment_counter!(&Stat::ServerEventWrite);
                         self.do_write(token);
                     }
 
                     // read events are handled last
                     if event.is_readable() {
-                        let _ = self.metrics.increment_counter(Stat::ServerEventRead, 1);
+                        increment_counter!(&Stat::ServerEventRead);
                         let _ = self.do_read(token);
                     }
 
@@ -184,7 +175,7 @@ impl Server {
                             let _ = session.deregister(&self.poll);
                             if self.sender.send(session).is_err() {
                                 error!("error sending session to worker");
-                                let _ = self.metrics().increment_counter(Stat::TcpAcceptEx, 1);
+                                increment_counter!(&Stat::TcpAcceptEx);
                             }
                         }
                     }
@@ -209,10 +200,6 @@ impl Server {
 }
 
 impl EventLoop for Server {
-    fn metrics(&self) -> &Arc<Metrics> {
-        &self.metrics
-    }
-
     fn get_mut_session(&mut self, token: Token) -> Option<&mut Session> {
         self.sessions.get_mut(token.0)
     }

@@ -29,15 +29,20 @@ use std::hash::Hasher;
 use ahash::RandomState;
 
 struct Entry<K, V> {
-    key: K, // 24 bytes
-    value: V, // 24 bytes
-    expiry: u64, // 8 byte
+    key: K,        // 24 bytes
+    value: V,      // 24 bytes
+    expiry: u64,   // 8 byte
     expires: bool, // 1 byte
 }
 
 impl<K, V> Entry<K, V> {
     pub fn new(key: K, value: V, expiry: Option<u64>) -> Self {
-        Self { key, value, expires: expiry.is_some(), expiry: expiry.unwrap_or(0) }
+        Self {
+            key,
+            value,
+            expires: expiry.is_some(),
+            expiry: expiry.unwrap_or(0),
+        }
     }
 }
 
@@ -109,7 +114,9 @@ impl<K: PartialEq + Hash + Eq, V> Table<K, V> {
                     }
                 } else if self.data[position].as_ref().unwrap().expires {
                     if now.is_none() {
-                        let epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+                        let epoch = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
                         now = Some(epoch.as_secs());
                     }
                     if self.data[position].as_ref().unwrap().expiry < now.unwrap() {
@@ -156,7 +163,9 @@ impl<K: PartialEq + Hash + Eq, V> Table<K, V> {
                 // unwrap is safe.
                 if self.data[candidate_position].as_ref().unwrap().expires {
                     if now.is_none() {
-                        let epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+                        let epoch = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
                         now = Some(epoch.as_secs());
                     }
                     if self.data[candidate_position].as_ref().unwrap().expiry < now.unwrap() {
@@ -191,7 +200,9 @@ impl<K: PartialEq + Hash + Eq, V> Table<K, V> {
             if self.data[position].is_some() {
                 if self.data[position].as_ref().unwrap().expires {
                     if now.is_none() {
-                        let epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+                        let epoch = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
                         now = Some(epoch.as_secs());
                     }
 
@@ -223,7 +234,9 @@ impl<K: PartialEq + Hash + Eq, V> Table<K, V> {
             if self.data[position].is_some() {
                 if self.data[position].as_ref().unwrap().expires {
                     if now.is_none() {
-                        let epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+                        let epoch = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .unwrap();
                         now = Some(epoch.as_secs());
                     }
 
@@ -356,12 +369,7 @@ impl HashTable {
         }
     }
 
-    pub fn replace(
-        &mut self,
-        key: &[u8],
-        item: Item,
-        expiry: Option<u64>,
-    ) -> Result<(), Error> {
+    pub fn replace(&mut self, key: &[u8], item: Item, expiry: Option<u64>) -> Result<(), Error> {
         if self.inner.contains_key(key) {
             self.set(key, item, expiry)
         } else {

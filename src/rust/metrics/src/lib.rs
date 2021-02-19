@@ -8,10 +8,14 @@ use strum_macros::{AsRefStr, EnumIter};
 
 pub type Metrics = rustcommon_fastmetrics::Metrics<Stat>;
 
+// As a temporary work-around for requiring all metrics to have a common type,
+// we combine server and storage metrics here.
+
 /// Defines various statistics
 #[derive(Copy, Clone, Debug, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum Stat {
+    // server/twemcache-rs
     Add,
     AddNotstored,
     AddStored,
@@ -93,6 +97,26 @@ pub enum Stat {
     WorkerEventTotal,
     WorkerEventWake,
     WorkerEventWrite,
+
+    // storage/segcache
+    HashLookup,
+    HashInsert,
+    HashRemove,
+    HashTagCollision,
+    HashArrayAlloc,
+    ItemCurrent,
+    ItemCurrentBytes,
+    ItemAlloc,
+    ItemAllocEx,
+    SegmentRequest,
+    SegmentRequestEx,
+    SegmentReturn,
+    SegmentEvict,
+    SegmentEvictRetry,
+    SegmentEcictEx,
+    SegmentExpire,
+    SegmentMerge,
+    SegmentCurrent,
 }
 
 impl Into<usize> for Stat {

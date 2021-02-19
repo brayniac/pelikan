@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::metrics::Metrics;
+use crate::metrics::*;
 use crate::*;
 
 use boring::ssl::{HandshakeError, MidHandshakeSslStream, SslStream};
@@ -28,33 +28,28 @@ pub struct Session {
     pub read_buffer: BytesMut,
     pub write_buffer: BytesMut,
     tmp_buffer: [u8; 1024],
-    metrics: Arc<Metrics>,
 }
 
 impl Session {
     /// Create a new `Session` representing a plain `TcpStream`
-    pub fn plain(addr: SocketAddr, stream: TcpStream, metrics: Arc<Metrics>) -> Self {
-        Self::new(addr, Stream::Plain(stream), metrics)
+    pub fn plain(addr: SocketAddr, stream: TcpStream) -> Self {
+        Self::new(addr, Stream::Plain(stream))
     }
 
     /// Create a new `Session` representing a negotiated `SslStream`
-    pub fn tls(addr: SocketAddr, stream: SslStream<TcpStream>, metrics: Arc<Metrics>) -> Self {
-        Self::new(addr, Stream::Tls(stream), metrics)
+    pub fn tls(addr: SocketAddr, stream: SslStream<TcpStream>) -> Self {
+        Self::new(addr, Stream::Tls(stream))
     }
 
     /// Create a new `Session` representing a `MidHandshakeSslStream`
-    pub fn handshaking(
-        addr: SocketAddr,
-        stream: MidHandshakeSslStream<TcpStream>,
-        metrics: Arc<Metrics>,
-    ) -> Self {
-        Self::new(addr, Stream::Handshaking(stream), metrics)
+    pub fn handshaking(addr: SocketAddr, stream: MidHandshakeSslStream<TcpStream>) -> Self {
+        Self::new(addr, Stream::Handshaking(stream))
     }
 
     // Create a new `Session`
-    fn new(addr: SocketAddr, stream: Stream, metrics: Arc<Metrics>) -> Self {
+    fn new(addr: SocketAddr, stream: Stream) -> Self {
         #[cfg(feature = "metrics")]
-        let _ = metrics.increment_counter(Stat::TcpAccept, 1);
+        increment_counter!(&Stat::TcpAccept);
         Self {
             token: Token(0),
             addr,
@@ -62,7 +57,6 @@ impl Session {
             read_buffer: BytesMut::with_capacity(1024),
             write_buffer: BytesMut::with_capacity(1024),
             tmp_buffer: [0; 1024],
-            metrics,
         }
     }
 
@@ -108,7 +102,7 @@ impl Session {
     /// Reads from the stream into the session buffer
     pub fn read(&mut self) -> Result<Option<usize>, std::io::Error> {
         #[cfg(feature = "metrics")]
-        let _ = self.metrics.increment_counter(Stat::TcpRecv, 1);
+        increment_counter!(&Stat::TcpRecv);
         let read_result = match &mut self.stream {
             Some(Stream::Plain(s)) => s.read(&mut self.tmp_buffer),
             Some(Stream::Tls(s)) => s.read(&mut self.tmp_buffer),
@@ -123,9 +117,7 @@ impl Session {
             Ok(0) => Ok(Some(0)),
             Ok(bytes) => {
                 #[cfg(feature = "metrics")]
-                let _ = self
-                    .metrics
-                    .increment_counter(Stat::TcpRecvByte, bytes.try_into().unwrap());
+                increment_counter_by!(&Stat::TcpRecvByte, bytes.try_into().unwrap());
                 self.read_buffer
                     .extend_from_slice(&self.tmp_buffer[0..bytes]);
                 Ok(Some(bytes))
@@ -136,7 +128,7 @@ impl Session {
                 } else {
                     trace!("error reading from session");
                     #[cfg(feature = "metrics")]
-                    let _ = self.metrics.increment_counter(Stat::TcpRecvEx, 1);
+                    increment_counter!(&Stat::TcpRecvEx);
                     Err(e)
                 }
             }
@@ -146,7 +138,7 @@ impl Session {
     /// Flush the session buffer to the stream
     pub fn flush(&mut self) -> Result<Option<usize>, std::io::Error> {
         #[cfg(feature = "metrics")]
-        let _ = self.metrics.increment_counter(Stat::TcpRecv, 1);
+        increment_counter!(&Stat::TcpSend);
         let write_result = match &mut self.stream {
             Some(Stream::Plain(s)) => s.write(&self.write_buffer.borrow()),
             Some(Stream::Tls(s)) => s.write(&self.write_buffer.borrow()),
@@ -161,15 +153,13 @@ impl Session {
             Ok(0) => Ok(Some(0)),
             Ok(bytes) => {
                 #[cfg(feature = "metrics")]
-                let _ = self
-                    .metrics
-                    .increment_counter(Stat::SessionSendByte, bytes.try_into().unwrap());
+                increment_counter_by!(&Stat::SessionSendByte, bytes.try_into().unwrap());
                 self.write_buffer.advance(bytes);
                 Ok(Some(bytes))
             }
             Err(e) => {
                 #[cfg(feature = "metrics")]
-                let _ = self.metrics.increment_counter(Stat::SessionSendEx, 1);
+                increment_counter!(&Stat::SessionSendEx);
                 Err(e)
             }
         }
@@ -220,7 +210,7 @@ impl Session {
     pub fn close(&mut self) {
         trace!("closing session");
         #[cfg(feature = "metrics")]
-        let _ = self.metrics.increment_counter(Stat::TcpClose, 1);
+        increment_counter!(&Stat::TcpClose);
         if let Some(stream) = self.stream.take() {
             self.stream = match stream {
                 Stream::Plain(s) => {

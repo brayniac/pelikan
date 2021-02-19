@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::metrics::Metrics;
+use crate::metrics::*;
 use crate::session::Session;
 use crate::{Stat, Token};
 
@@ -14,11 +14,6 @@ use std::sync::Arc;
 /// event loop and provides some default implementations and helper functions.
 pub trait EventLoop {
     // the following functions must be implemented
-
-    /// Provides access to an atomic-reference counted `Metrics` structure. This
-    /// is used to allow consistent access to the `Metrics` structure and allow
-    /// the default implementation of the related helper functions.
-    fn metrics(&self) -> &Arc<Metrics>;
 
     /// Provides access to the `Poll` structure which allows polling for new
     /// readiness events and managing registration for event sources.
@@ -38,18 +33,6 @@ pub trait EventLoop {
     /// Handle new data received for the `Session` with the provided `Token`.
     /// This will include parsing the incoming data and composing a response.
     fn handle_data(&mut self, token: Token) -> Result<(), ()>;
-
-    // stats helper functions
-
-    /// Increment the statistic counter.
-    fn increment_count(&self, stat: &Stat) {
-        self.increment_count_n(stat, 1)
-    }
-
-    /// Increment the statistic counter by a provided count.
-    fn increment_count_n(&self, stat: &Stat, count: u64) {
-        let _ = self.metrics().increment_counter(*stat, count);
-    }
 
     /// Handle a read event for the `Session` with the `Token`.
     fn do_read(&mut self, token: Token) -> Result<(), ()> {
