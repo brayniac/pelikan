@@ -30,8 +30,7 @@ lazy_static! {
 fn print_directives(lib: impl AsRef<str>, subdir: impl AsRef<str>) {
     let lib: &str = lib.as_ref();
     let subdir: &str = subdir.as_ref();
-    let bindir =
-        get_cmake_binary_dir().unwrap_or(format!("{}/build", env::var("OUT_DIR").unwrap()));
+    let bindir = get_cmake_binary_dir().unwrap_or(format!("{}/build", env::var("OUT_DIR").unwrap()));
 
     println!("cargo:rustc-link-search={}/{}/", bindir, subdir);
     println!("cargo:rustc-link-lib={}", lib);
@@ -597,10 +596,7 @@ fn main() {
         cmake::build("../../../deps/ccommon");
     }
 
-    println!(
-        "cargo:rerun-if-changed={}/config.h",
-        get_cmake_binary_dir().unwrap_or(env::var("OUT_DIR").unwrap())
-    );
+    println!("cargo:rerun-if-changed={}/config.h", get_cmake_binary_dir().unwrap_or(env::var("OUT_DIR").unwrap()));
 
     {
         let bindings = builder()
@@ -711,7 +707,7 @@ fn main() {
     );
 }
 
-fn get_cmake_binary_dir() -> Result<String, VarError> {
+fn get_cmake_binary_dir() -> Result<String,VarError> {
     match env::var("CMAKE_BINARY_DIR") {
         Ok(var) => Ok(var),
         Err(e) => match e {

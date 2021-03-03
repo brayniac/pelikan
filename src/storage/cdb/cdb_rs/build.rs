@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use std::env;
-use std::env::VarError;
 use std::fs;
 use std::path::PathBuf;
+use std::env::VarError;
 
-fn get_cmake_binary_dir() -> Result<String, VarError> {
+fn get_cmake_binary_dir() -> Result<String,VarError> {
     match env::var("CMAKE_BINARY_DIR") {
         Ok(var) => Ok(var),
         Err(e) => match e {
@@ -44,9 +44,7 @@ fn main() {
         Ok(dir) => PathBuf::from(dir),
         Err(_) => {
             // build is being driven by Cargo
-            cmake::Config::new("../../../../deps/ccommon")
-                .no_build_target(true)
-                .build()
+            cmake::Config::new("../../../../deps/ccommon").no_build_target(true).build()
         }
     };
 
