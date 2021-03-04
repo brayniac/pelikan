@@ -245,7 +245,10 @@ impl Item {
 
     // NOTE: size is rounded up for alignment
     pub fn size(&self) -> usize {
-        (((ITEM_HDR_SIZE + self.klen() as usize + self.vlen() as usize) >> 3) + 1) << 3
+        (((ITEM_HDR_SIZE + self.olen() as usize + self.klen() as usize + self.vlen() as usize)
+            >> 3)
+            + 1)
+            << 3
     }
 
     pub fn tombstone(&mut self) {

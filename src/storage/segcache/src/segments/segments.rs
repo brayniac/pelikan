@@ -304,7 +304,6 @@ impl Segments {
 
     // adds a segment to the free queue
     pub(crate) fn push_free(&mut self, id: i32) {
-        println!("push free: {}", id);
         // unlinks the next segment
         if let Some(next) = self.headers[id as usize].next_seg() {
             self.headers[next as usize].set_prev_seg(-1);
@@ -359,8 +358,6 @@ impl Segments {
                 id,
                 self.headers[id as usize].write_offset()
             );
-
-            println!("pop free: {}", id);
 
             Some(id)
         }

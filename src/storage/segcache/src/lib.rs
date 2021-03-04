@@ -181,16 +181,7 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
     }
 
     #[allow(clippy::result_unit_err)]
-    fn expire_segment(&mut self, id: i32) -> Result<(), ()> {
-        println!("expire: {}", id);
-        self.clear_segment(id, true)?;
-        self.segments.push_free(id);
-        Ok(())
-    }
-
-    #[allow(clippy::result_unit_err)]
     fn evict_segment(&mut self, id: i32) -> Result<(), ()> {
-        println!("evict: {}", id);
         self.clear_segment(id, false)?;
         self.segments.push_free(id);
         Ok(())

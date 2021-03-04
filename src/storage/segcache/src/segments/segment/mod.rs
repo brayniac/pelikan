@@ -201,22 +201,30 @@ impl<'a> Segment<'a> {
         // skips over seg_wait_refcount and evict retry, because no threading
 
         if self.n_item() != 0 {
-            if !self.check_integrity() {
-                println!("segment failed integrity check");
-            } else {
-                println!("segment passed integrity check");
-            }
-            println!("segment is: {:?}", self);
+            println!("segment has items after clearing");
+            // if !self.check_integrity() {
+            //     println!("segment failed integrity check");
+            // } else {
+            //     println!("segment passed integrity check");
+            // }
+            // println!("segment is: {:?}", self);
+            assert_eq!(self.n_item(), 0);
         }
-        assert_eq!(self.n_item(), 0);
 
-        if cfg!(feature = "magic") {
-            assert_eq!(
-                self.header.occupied_size(),
-                std::mem::size_of_val(&SEG_MAGIC) as i32,
-            );
+        let expected_size = if cfg!(feature = "magic") {
+            std::mem::size_of_val(&SEG_MAGIC) as i32
         } else {
-            assert_eq!(self.header.occupied_size(), 0);
+            0
+        };
+        if self.header.occupied_size() != expected_size {
+            println!("segment size unexpected!");
+            // if !self.check_integrity() {
+            //     println!("segment failed integrity check");
+            // } else {
+            //     println!("segment passed integrity check");
+            // }
+            // println!("segment is: {:?}", self);
+            assert_eq!(self.header.occupied_size(), expected_size)
         }
 
         self.header.set_write_offset(self.header.occupied_size());

@@ -116,6 +116,8 @@ impl Worker<CacheHasher> {
             #[cfg(feature = "stats")]
             increment_counter!(&Stat::WorkerEventLoop);
 
+            self.data.expire();
+
             // get events with timeout
             if self.poll.poll(&mut events, timeout).is_err() {
                 error!("Error polling");
