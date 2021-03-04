@@ -97,6 +97,18 @@ impl<'a> Segment<'a> {
         self.header.id()
     }
 
+    pub fn create_at(&self) -> CoarseInstant {
+        self.header.create_at()
+    }
+
+    pub fn ttl(&self) -> CoarseDuration {
+        self.header.ttl()
+    }
+
+    pub fn next_seg(&self) -> Option<i32> {
+        self.header.next_seg()
+    }
+
     pub(crate) fn remove_item(&mut self, item_info: u64, tombstone: bool) {
         let offset = get_offset(item_info) as usize;
         self.remove_item_at(offset, tombstone)
@@ -143,6 +155,7 @@ impl<'a> Segment<'a> {
         expire: bool,
     ) -> Result<(), ()> {
         self.header.set_accessible(false);
+        self.header.set_evictable(false);
 
         let max_offset = self.max_item_offset();
         let mut offset = if cfg!(feature = "magic") {

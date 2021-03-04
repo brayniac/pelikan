@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::*;
+use std::sync::Mutex;
 
 use crate::common::ThinOption;
 
@@ -42,7 +43,8 @@ pub struct TtlBucket {
     segments: i32,
     next_to_merge: i32,
     last_cutoff_freq: i32,
-    _pad: u32, // pad to half a cacheline
+    mutex: Mutex<()>,
+    _pad0: u128, // pad to a full cacheline
 }
 
 pub struct TtlBuckets {
@@ -59,7 +61,38 @@ impl TtlBucket {
             segments: 0,
             next_to_merge: -1,
             last_cutoff_freq: 0,
-            _pad: 0,
+            mutex: Mutex::new(()),
+            _pad0: 0,
+        }
+    }
+
+    fn expire<S: BuildHasher>(&mut self, hashtable: &mut HashTable<S>, segments: &mut Segments) {
+        // this is intended to let a slow client finish writing to the expiring
+        // segment.
+        // TODO(bmartin): is this needed in this design?
+        let grace_period = CoarseDuration::from_secs(2);
+
+        loop {
+            let seg_id = self.head;
+            if seg_id < 0 {
+                break;
+            }
+            let flush_at = segments.flush_at();
+            let mut segment = segments.get_mut(seg_id).unwrap();
+            if segment.create_at() + segment.ttl() + grace_period < recent_coarse!()
+                || segment.create_at() < flush_at
+            {
+                if let Some(next) = segment.next_seg() {
+                    self.head = next;
+                } else {
+                    self.head = -1;
+                    self.tail = -1;
+                }
+                let _ = segment.clear(hashtable, true);
+                segments.push_free(seg_id);
+            } else {
+                break;
+            }
         }
     }
 
@@ -191,6 +224,16 @@ impl TtlBuckets {
         // NOTE: since get_bucket_index() must return an index within the slice,
         // we do not need to worry about UB here.
         unsafe { self.buckets.get_unchecked_mut(index) }
+    }
+
+    pub fn expire<S: BuildHasher>(
+        &mut self,
+        hashtable: &mut HashTable<S>,
+        segments: &mut Segments,
+    ) {
+        for bucket in self.buckets.iter_mut() {
+            &bucket.expire(hashtable, segments);
+        }
     }
 }
 

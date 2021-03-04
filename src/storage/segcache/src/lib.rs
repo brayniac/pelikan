@@ -182,6 +182,7 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
 
     #[allow(clippy::result_unit_err)]
     fn expire_segment(&mut self, id: i32) -> Result<(), ()> {
+        println!("expire: {}", id);
         self.clear_segment(id, true)?;
         self.segments.push_free(id);
         Ok(())
@@ -189,6 +190,7 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
 
     #[allow(clippy::result_unit_err)]
     fn evict_segment(&mut self, id: i32) -> Result<(), ()> {
+        println!("evict: {}", id);
         self.clear_segment(id, false)?;
         self.segments.push_free(id);
         Ok(())
@@ -210,6 +212,13 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
         } else {
             segment.clear(&mut self.hashtable, expire)
         }
+    }
+
+    // Loops through the TTL Buckets to handle expiration
+    pub fn expire(&mut self) {
+        clock_refresh!();
+        self.ttl_buckets
+            .expire(&mut self.hashtable, &mut self.segments);
     }
 }
 
@@ -289,6 +298,68 @@ where
                     }
 
                     return Some(current_item);
+                }
+            }
+        }
+
+        None
+    }
+
+    // get the item info for a key if it exists in the hash without incrementing
+    // the item frequency
+    pub fn get_no_freq_incr(&mut self, key: &[u8], segments: &mut Segments) -> Option<Item> {
+        // TODO(bmartin): should this actually increment the stat?
+        increment_counter!(&Stat::HashLookup);
+        let hash = self.hash(key);
+        let tag = tag_from_hash(hash);
+        let bucket_id = hash & self.mask;
+        trace!("hash: {} mask: {} bucket: {}", hash, self.mask, bucket_id);
+
+        let bucket = self.data.get_mut(bucket_id as usize).unwrap();
+
+        let chain_len = chain_len(bucket.data[0]);
+        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        // NOTE: this is only valid for the first bucket in a chain, note that
+        // we start scanning from 1 not 0. Chaining is currently not implemented
+        for i in 1..n_item_slot {
+            let current_info = bucket.data[i];
+
+            if get_tag(current_info) == tag {
+                let current_item = segments.get_item(current_info).unwrap();
+                if current_item.key() != key {
+                    increment_counter!(&Stat::HashTagCollision);
+                } else {
+                    return Some(current_item);
+                }
+            }
+        }
+
+        None
+    }
+
+    // TODO(bmartin): decide on what width to actually return here...
+    pub fn get_freq(&mut self, key: &[u8], segments: &mut Segments) -> Option<u64> {
+        let hash = self.hash(key);
+        let tag = tag_from_hash(hash);
+        let bucket_id = hash & self.mask;
+
+        let bucket = self.data.get_mut(bucket_id as usize).unwrap();
+
+        let chain_len = chain_len(bucket.data[0]);
+        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        // NOTE: this is only valid for the first bucket in a chain, note that
+        // we start scanning from 1 not 0. Chaining is currently not implemented
+        for i in 1..n_item_slot {
+            let current_info = bucket.data[i];
+
+            if get_tag(current_info) == tag {
+                let current_item = segments.get_item(current_info).unwrap();
+                if current_item.key() != key {
+                    increment_counter!(&Stat::HashTagCollision);
+                } else {
+                    return Some(get_freq(current_info));
                 }
             }
         }
@@ -538,7 +609,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<HashBucket>(), 64);
         assert_eq!(std::mem::size_of::<HashTable<ahash::RandomState>>(), 64);
 
-        assert_eq!(std::mem::size_of::<TtlBucket>(), 32);
+        assert_eq!(std::mem::size_of::<TtlBucket>(), 64);
         assert_eq!(std::mem::size_of::<TtlBuckets>(), 16);
     }
 
@@ -746,5 +817,53 @@ mod tests {
         // TODO(bmartin): can't check this until we do chaining, there are too
         // many collisions for this config.
         // assert_eq!(inserts, iters);
+    }
+
+    #[test]
+    fn expiration() {
+        let segments = 64;
+        let seg_size = 2 * 1024;
+
+        let mut cache = SegCache::new(16, build_hasher(), segments as i32, seg_size);
+
+        assert_eq!(cache.items(), 0);
+        assert_eq!(cache.segments.free(), segments);
+
+        assert!(cache
+            .insert(b"latte", b"", None, CoarseDuration::from_secs(5))
+            .is_ok());
+        assert!(cache
+            .insert(b"espresso", b"", None, CoarseDuration::from_secs(15))
+            .is_ok());
+
+        assert!(cache.get(b"latte").is_some());
+        assert!(cache.get(b"espresso").is_some());
+        assert_eq!(cache.items(), 2);
+        assert_eq!(cache.segments.free(), segments - 2);
+
+        // not enough time elapsed, not removed by expire
+        cache.expire();
+        assert!(cache.get(b"latte").is_some());
+        assert!(cache.get(b"espresso").is_some());
+        assert_eq!(cache.items(), 2);
+        assert_eq!(cache.segments.free(), segments - 2);
+
+        // wait and expire again
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        cache.expire();
+
+        assert!(cache.get(b"latte").is_none());
+        assert!(cache.get(b"espresso").is_some());
+        assert_eq!(cache.items(), 1);
+        assert_eq!(cache.segments.free(), segments - 1);
+
+        // wait and expire again
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        cache.expire();
+
+        assert!(cache.get(b"latte").is_none());
+        assert!(cache.get(b"espresso").is_none());
+        assert_eq!(cache.items(), 0);
+        assert_eq!(cache.segments.free(), segments);
     }
 }

@@ -14,6 +14,7 @@ pub struct SegEvict {
     last_update_time: CoarseInstant,
     ranked_segs: Box<[i32]>,
     index: usize,
+    rng: Box<Random>,
 }
 
 impl SegEvict {
@@ -107,6 +108,7 @@ impl SegEvict {
             last_update_time: recent_coarse!(),
             ranked_segs,
             index: 0,
+            rng: Box::new(rng()),
         }
     }
 }
@@ -156,14 +158,14 @@ impl SegmentsBuilder {
 }
 
 pub struct Segments {
-    rng: Box<Random>, // we had extra room for this pointer to keep rng state, this can be moved into SegEvict
     headers: Box<[SegmentHeader]>, // pointer to slice of headers
-    data: Box<[u8]>,  // pointer to raw data
-    seg_size: i32,    // size of segment in bytes
-    free: i32,        // number of segments free
-    cap: i32,         // total number of segments
-    free_q: i32,      // next free segment
-    evict: Box<SegEvict>, // eviction config and state
+    data: Box<[u8]>,               // pointer to raw data
+    seg_size: i32,                 // size of segment in bytes
+    free: i32,                     // number of segments free
+    cap: i32,                      // total number of segments
+    free_q: i32,                   // next free segment
+    flush_at: CoarseInstant,       // time last flushed
+    evict: Box<SegEvict>,          // eviction config and state
 }
 
 impl Default for Segments {
@@ -219,8 +221,8 @@ impl Segments {
             free: segments as i32,
             free_q: 0,
             data,
+            flush_at: recent_coarse!(),
             evict: Box::new(SegEvict::new(segments, evict_policy)),
-            rng: Box::new(rng()),
         }
     }
 
@@ -233,6 +235,10 @@ impl Segments {
     // returns the number of segments in the free queue
     pub fn free(&self) -> usize {
         self.free as usize
+    }
+
+    pub fn flush_at(&self) -> CoarseInstant {
+        self.flush_at
     }
 
     pub(crate) fn get_item(&mut self, item_info: u64) -> Option<Item> {
@@ -298,6 +304,7 @@ impl Segments {
 
     // adds a segment to the free queue
     pub(crate) fn push_free(&mut self, id: i32) {
+        println!("push free: {}", id);
         // unlinks the next segment
         if let Some(next) = self.headers[id as usize].next_seg() {
             self.headers[next as usize].set_prev_seg(-1);
@@ -353,6 +360,8 @@ impl Segments {
                 self.headers[id as usize].write_offset()
             );
 
+            println!("pop free: {}", id);
+
             Some(id)
         }
     }
@@ -362,7 +371,7 @@ impl Segments {
         match self.evict.policy {
             EvictPolicy::None => None,
             EvictPolicy::Random => {
-                let mut start: i32 = self.rng.gen();
+                let mut start: i32 = self.evict.rng.gen();
                 if start < 0 {
                     start *= -1;
                 }
