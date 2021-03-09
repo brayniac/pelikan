@@ -155,7 +155,7 @@ impl TtlBucket {
                     segment.header.incr_n_item();
                     let ptr = unsafe { segment.data.as_mut_ptr().add(offset) };
 
-                    let item = Item::from_ptr(ptr);
+                    let item = RawItem::from_ptr(ptr);
                     return Ok(ReservedItem {
                         item,
                         offset,

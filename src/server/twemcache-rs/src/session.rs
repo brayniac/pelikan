@@ -2,8 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::metrics::*;
 use crate::*;
+use metrics::Stat;
 
 use boring::ssl::{HandshakeError, MidHandshakeSslStream, SslStream};
 use bytes::{Buf, BytesMut};

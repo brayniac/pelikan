@@ -21,12 +21,17 @@ pub const FREQ_MASK: u64 = 0x000FF00000000000;
 pub const SEG_ID_MASK: u64 = 0x00000FFFFFF00000;
 pub const OFFSET_MASK: u64 = 0x00000000000FFFFF;
 
+
+
 pub const FREQ_BIT_SHIFT: u64 = 44;
 
+pub const LOCK_MASK: u64 = 0xFF00000000000000;
 pub const BUCKET_CHAIN_LEN_MASK: u64 = 0x00FF000000000000;
+pub const TS_MASK: u64 =  0x0000FFFF00000000;
+pub const CAS_MASK: u64 = 0x00000000FFFFFFFF;
 
 // ITEM CONSTS
-pub const ITEM_HDR_SIZE: usize = std::mem::size_of::<ItemHeader>();
+pub const ITEM_HDR_SIZE: usize = std::mem::size_of::<RawItemHeader>();
 pub const ITEM_MAGIC: u32 = 0xDECAFBAD;
 pub const ITEM_MAGIC_SIZE: usize = std::mem::size_of::<u32>();
 
@@ -55,6 +60,8 @@ pub enum SegCacheError {
     EvictionEx,
     ItemOversized,
     NoFreeSegments,
+    Exists,
+    NotFound,
 }
 
 impl<S: std::hash::BuildHasher> SegCache<S> {
@@ -155,6 +162,25 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
                 }
             }
             Err(e) => Err(e),
+        }
+    }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn cas(
+        &mut self,
+        key: &[u8],
+        value: &[u8],
+        optional: Option<&[u8]>,
+        ttl: CoarseDuration,
+        cas: u32,
+    ) -> Result<(), SegCacheError> {
+        match self.hashtable.try_update_cas(key, cas, &mut self.segments) {
+            Ok(()) => {
+                self.insert(key, value, optional, ttl)
+            }
+            Err(e) => {
+                Err(e)
+            }
         }
     }
 
@@ -288,7 +314,14 @@ where
                         }
                     }
 
-                    return Some(current_item);
+                    let cas = get_cas(bucket.data[0]);
+
+                    let item = Item {
+                        raw: current_item,
+                        cas,
+                    };
+
+                    return Some(item);
                 }
             }
         }
@@ -321,7 +354,14 @@ where
                 if current_item.key() != key {
                     increment_counter!(&Stat::HashTagCollision);
                 } else {
-                    return Some(current_item);
+                    let cas = get_cas(bucket.data[0]);
+
+                    let item = Item {
+                        raw: current_item,
+                        cas,
+                    };
+
+                    return Some(item);
                 }
             }
         }
@@ -361,7 +401,7 @@ where
     #[allow(clippy::result_unit_err)]
     pub fn insert(
         &mut self,
-        item: Item,
+        item: RawItem,
         seg: i32,
         offset: u64,
         segments: &mut Segments,
@@ -404,6 +444,58 @@ where
         } else {
             Err(())
         }
+    }
+
+    pub fn try_update_cas(&mut self, key: &[u8], cas: u32, segments: &mut Segments) -> Result<(), SegCacheError> {
+        increment_counter!(&Stat::HashLookup);
+        let hash = self.hash(key);
+        let tag = tag_from_hash(hash);
+        let bucket_id = hash & self.mask;
+        trace!("hash: {} mask: {} bucket: {}", hash, self.mask, bucket_id);
+
+        let bucket = self.data.get_mut(bucket_id as usize).unwrap();
+
+        if cas != get_cas(bucket.data[0]) {
+            return Err(SegCacheError::Exists);
+        }
+
+        let chain_len = chain_len(bucket.data[0]);
+        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        // NOTE: this is only valid for the first bucket in a chain, note that
+        // we start scanning from 1 not 0. Chaining is currently not implemented
+        for i in 1..n_item_slot {
+            let current_info = bucket.data[i];
+
+            if get_tag(current_info) == tag {
+                let current_item = segments.get_item(current_info).unwrap();
+                if current_item.key() != key {
+                    increment_counter!(&Stat::HashTagCollision);
+                } else {
+                    // update item frequency
+                    let mut freq = get_freq(current_info);
+                    if freq < 127 {
+                        let rand: u64 = self.rng.gen();
+                        if freq <= 16 || rand % freq == 0 {
+                            freq = ((freq + 1) | 0x80) << FREQ_BIT_SHIFT;
+                        } else {
+                            freq = (freq | 0x80) << FREQ_BIT_SHIFT;
+                        }
+                        if bucket.data[i] == current_info {
+                            bucket.data[i] = (current_info & !FREQ_MASK) | freq;
+                        }
+                    }
+
+                    if cas == get_cas(bucket.data[0]) {
+                        // TODO(bmartin): what is expected on overflow of the cas bits?
+                        bucket.data[0] += 1;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        Err(SegCacheError::NotFound)
     }
 
     pub fn delete(&mut self, key: &[u8], segments: &mut Segments) -> bool {
@@ -534,6 +626,11 @@ const fn get_freq(item_info: u64) -> u64 {
 }
 
 #[inline]
+const fn get_cas(bucket_info: u64) -> u32 {
+    (bucket_info & CAS_MASK) as u32
+}
+
+#[inline]
 const fn get_tag(item_info: u64) -> u64 {
     item_info & TAG_MASK
 }
@@ -567,9 +664,7 @@ impl HashBucket {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rand::*;
     use ahash::RandomState;
-    // use rustcommon_time::*;
 
     // Use ahash for testing with fixed seeds. Reproducible testing is important
     fn build_hasher() -> RandomState {
@@ -807,7 +902,7 @@ mod tests {
 
         // TODO(bmartin): can't check this until we do chaining, there are too
         // many collisions for this config.
-        // assert_eq!(inserts, iters);
+        assert_eq!(inserts, 9999721);
     }
 
     #[test]

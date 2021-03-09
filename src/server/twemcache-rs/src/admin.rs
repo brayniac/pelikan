@@ -3,10 +3,10 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::event_loop::EventLoop;
-use crate::metrics::*;
 use crate::protocol::admin::*;
 use crate::session::*;
 use crate::*;
+use metrics::Stat;
 
 use boring::ssl::{HandshakeError, Ssl, SslContext};
 use mio::net::TcpListener;

@@ -27,8 +27,9 @@ path = "benches/benchmark.rs"
 harness = false
 
 [features]
-default = ["metrics"]
-metrics = []
+default = ["stats"]
+noop =  []
+stats = []
 
 [dependencies]
 ahash = "0.6.2"
@@ -39,6 +40,7 @@ config = { path = "../../rust/config" }
 fasthash = "0.4.0"
 fxhash = "0.2.1"
 libc = "0.2.83"
+metrics = { path = "../../rust/metrics" }
 mio = { version = "0.7.7", features = ["os-poll", "tcp"] }
 rand = "0.8.0"
 rustcommon-logger = { git = "https://github.com/brayniac/rustcommon", branch = "time-macros" }

@@ -8,6 +8,8 @@ extern crate rustcommon_logger;
 #[macro_use]
 extern crate rustcommon_fastmetrics;
 
+use metrics::Stat;
+
 use crate::worker::CacheHasher;
 use std::net::SocketAddr;
 use std::sync::mpsc::*;
@@ -22,7 +24,7 @@ use slab::Slab;
 mod admin;
 mod common;
 mod event_loop;
-mod metrics;
+// mod metrics;
 mod protocol;
 mod server;
 mod session;
@@ -31,7 +33,7 @@ mod worker;
 
 use crate::admin::Admin;
 use crate::common::Message;
-use crate::metrics::Stat;
+// use crate::metrics::Stat;
 use crate::server::Server;
 use crate::worker::Worker;
 
@@ -63,7 +65,7 @@ impl TwemcacheBuilder {
     /// issues encountered while initializing the components.
     pub fn new(config_file: Option<String>) -> Self {
         // initialize metrics
-        let metrics = crate::metrics::init();
+        let metrics = metrics::init();
 
         // load config from file
         let config = if let Some(file) = config_file {

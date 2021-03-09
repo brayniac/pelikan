@@ -241,7 +241,7 @@ impl Segments {
         self.flush_at
     }
 
-    pub(crate) fn get_item(&mut self, item_info: u64) -> Option<Item> {
+    pub(crate) fn get_item(&mut self, item_info: u64) -> Option<RawItem> {
         let seg_id = get_seg_id(item_info);
         let offset = get_offset(item_info) as usize;
         self.get_item_at(seg_id, offset)
@@ -249,7 +249,7 @@ impl Segments {
 
     // returns the item looking it up from the item_info
     // TODO(bmartin): consider changing the return type here and removing asserts?
-    pub(crate) fn get_item_at(&mut self, seg_id: i32, offset: usize) -> Option<Item> {
+    pub(crate) fn get_item_at(&mut self, seg_id: i32, offset: usize) -> Option<RawItem> {
         trace!("getting item from: seg: {} offset: {}", seg_id, offset);
         assert!(seg_id < self.cap as i32);
 

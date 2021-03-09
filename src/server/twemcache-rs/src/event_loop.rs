@@ -2,9 +2,9 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::metrics::*;
 use crate::session::Session;
-use crate::{Stat, Token};
+use crate::Token;
+use metrics::Stat;
 
 use mio::Poll;
 

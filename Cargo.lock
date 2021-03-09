@@ -1097,7 +1097,7 @@ dependencies = [
 name = "metrics"
 version = "0.1.0"
 dependencies = [
- "rustcommon-fastmetrics 0.0.3 (git+https://github.com/twitter/rustcommon)",
+ "rustcommon-fastmetrics",
  "strum",
  "strum_macros",
 ]
@@ -1379,9 +1379,10 @@ dependencies = [
  "fasthash",
  "fxhash",
  "libc",
+ "metrics",
  "mio 0.7.9",
  "rand 0.8.3",
- "rustcommon-fastmetrics 0.0.3 (git+https://github.com/brayniac/rustcommon?branch=time-macros)",
+ "rustcommon-fastmetrics",
  "rustcommon-logger 1.0.0 (git+https://github.com/brayniac/rustcommon?branch=time-macros)",
  "rustcommon-time",
  "segcache",
@@ -1853,14 +1854,6 @@ version = "0.2.0"
 source = "git+https://github.com/twitter/rustcommon#de87819702e1199bd759e40a6c8fe5930c8cfdde"
 dependencies = [
  "bytes 1.0.1",
-]
-
-[[package]]
-name = "rustcommon-fastmetrics"
-version = "0.0.3"
-source = "git+https://github.com/twitter/rustcommon#de87819702e1199bd759e40a6c8fe5930c8cfdde"
-dependencies = [
- "thiserror",
 ]
 
 [[package]]

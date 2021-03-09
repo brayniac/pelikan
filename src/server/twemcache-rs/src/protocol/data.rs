@@ -8,6 +8,7 @@ use std::borrow::Borrow;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Verb {
     Get,
+    Gets,
     Set,
     Cas,
     Add,
@@ -22,6 +23,7 @@ pub enum Verb {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     Get(GetRequest),
+    Gets(GetsRequest),
     Set(SetRequest),
     Cas(CasRequest),
     Add(AddRequest),
@@ -43,6 +45,23 @@ pub struct GetRequest {
 }
 
 impl GetRequest {
+    pub fn keys(&self) -> Vec<&[u8]> {
+        let data: &[u8] = self.data.borrow();
+        let mut keys = Vec::new();
+        for key_index in &self.key_indices {
+            keys.push(&data[key_index.0..key_index.1])
+        }
+        keys
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct GetsRequest {
+    data: BytesMut,
+    key_indices: Vec<(usize, usize)>,
+}
+
+impl GetsRequest {
     pub fn keys(&self) -> Vec<&[u8]> {
         let data: &[u8] = self.data.borrow();
         let mut keys = Vec::new();
@@ -228,6 +247,7 @@ pub fn parse(buffer: &mut BytesMut) -> Result<Request, ParseError> {
         if let Some(command_verb_end) = single_byte_windows.position(|w| w == b" ") {
             let verb = match &buf[0..command_verb_end] {
                 b"get" => Verb::Get,
+                b"gets" => Verb::Gets,
                 b"set" => Verb::Set,
                 b"cas" => Verb::Cas,
                 b"add" => Verb::Add,
@@ -238,7 +258,7 @@ pub fn parse(buffer: &mut BytesMut) -> Result<Request, ParseError> {
                 }
             };
             match verb {
-                Verb::Get => {
+                Verb::Get | Verb::Gets => {
                     let mut previous = command_verb_end + 1;
                     let mut keys = Vec::new();
 
@@ -260,10 +280,17 @@ pub fn parse(buffer: &mut BytesMut) -> Result<Request, ParseError> {
                     }
 
                     let data = buffer.split_to(command_end + 2);
-                    Ok(Request::Get(GetRequest {
-                        data,
-                        key_indices: keys,
-                    }))
+                    if verb == Verb::Get {
+                        Ok(Request::Get(GetRequest {
+                            data,
+                            key_indices: keys,
+                        }))
+                    } else {
+                        Ok(Request::Gets(GetsRequest {
+                            data,
+                            key_indices: keys,
+                        }))
+                    }
                 }
                 Verb::Cas => {
                     let key_end = single_byte_windows
@@ -545,6 +572,23 @@ mod tests {
             assert!(parsed.is_ok());
             if let Ok(Request::Get(get_request)) = parsed {
                 assert_eq!(get_request.keys(), vec![key]);
+            } else {
+                panic!("incorrectly parsed");
+            }
+        }
+    }
+
+    #[test]
+    fn parse_gets() {
+        for key in keys() {
+            let mut buffer = BytesMut::new();
+            buffer.extend_from_slice(b"gets ");
+            buffer.extend_from_slice(key);
+            buffer.extend_from_slice(b"\r\n");
+            let parsed = parse(&mut buffer);
+            assert!(parsed.is_ok());
+            if let Ok(Request::Gets(gets_request)) = parsed {
+                assert_eq!(gets_request.keys(), vec![key]);
             } else {
                 panic!("incorrectly parsed");
             }

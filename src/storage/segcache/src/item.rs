@@ -3,7 +3,6 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::*;
-use core::sync::atomic::{AtomicU32, Ordering};
 
 const KLEN_MASK: u32 = 0x000000FF;
 const VLEN_MASK: u32 = 0xFFFFFF00;
@@ -14,7 +13,7 @@ const DEL_MASK: u8 = 0b01000000;
 const NUM_MASK: u8 = 0b10000000;
 
 #[repr(C)]
-pub struct Item {
+pub struct RawItem {
     pub(crate) data: *mut u8,
 }
 
@@ -24,7 +23,7 @@ pub struct Item {
 // reference must be strategically placed to ensure alignment and avoid UB.
 #[repr(C)]
 #[repr(packed)]
-pub struct ItemHeader {
+pub struct RawItemHeader {
     #[cfg(feature = "magic")]
     magic: u32,
     len: u32,  // packs vlen:24 klen:8
@@ -32,9 +31,9 @@ pub struct ItemHeader {
 }
 
 #[cfg(not(feature = "magic"))]
-impl std::fmt::Debug for ItemHeader {
+impl std::fmt::Debug for RawItemHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-        f.debug_struct("ItemHeader")
+        f.debug_struct("RawItemHeader")
             .field("klen", &self.klen())
             .field("vlen", &self.vlen())
             .field("is_num", &self.is_num())
@@ -45,10 +44,10 @@ impl std::fmt::Debug for ItemHeader {
 }
 
 #[cfg(feature = "magic")]
-impl std::fmt::Debug for ItemHeader {
+impl std::fmt::Debug for RawItemHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
         let magic = self.magic;
-        f.debug_struct("ItemHeader")
+        f.debug_struct("RawItemHeader")
             .field("magic", &format!("0x{:X}", magic))
             .field("klen", &self.klen())
             .field("vlen", &self.vlen())
@@ -59,7 +58,7 @@ impl std::fmt::Debug for ItemHeader {
     }
 }
 
-impl ItemHeader {
+impl RawItemHeader {
     // return the magic
     #[cfg(feature = "magic")]
     pub fn magic(&self) -> u32 {
@@ -132,17 +131,17 @@ impl ItemHeader {
     }
 }
 
-impl Item {
-    fn header(&self) -> &ItemHeader {
-        unsafe { &*(self.data as *const ItemHeader) }
+impl RawItem {
+    fn header(&self) -> &RawItemHeader {
+        unsafe { &*(self.data as *const RawItemHeader) }
     }
 
-    fn header_mut(&mut self) -> *mut ItemHeader {
-        self.data as *mut ItemHeader
+    fn header_mut(&mut self) -> *mut RawItemHeader {
+        self.data as *mut RawItemHeader
     }
 
-    pub fn from_ptr(ptr: *mut u8) -> Item {
-        Item { data: ptr }
+    pub fn from_ptr(ptr: *mut u8) -> RawItem {
+        Self { data: ptr }
     }
 
     #[inline]
@@ -260,9 +259,64 @@ impl Item {
     }
 }
 
+pub struct Item {
+    pub(crate) cas: u32,
+    pub(crate) raw: RawItem,
+}
+
+impl Item {
+    pub fn key(&self) -> &[u8] {
+        self.raw.key()
+    }
+
+    pub fn klen(&self) -> u8 {
+        self.raw.klen()
+    }
+
+    pub fn value(&self) -> &[u8] {
+        self.raw.value()
+    }
+
+    pub fn check_magic(&self) {
+        self.raw.check_magic()
+    }
+
+    pub fn deleted(&self) -> bool {
+        self.raw.deleted()
+    }
+
+    pub fn size(&self) -> usize {
+        self.raw.size()
+    }
+
+    pub fn cas(&self) -> u32 {
+        self.cas
+    }
+
+    pub fn optional(&self) -> Option<&[u8]> {
+        self.raw.optional()
+    }
+}
+
 impl std::fmt::Debug for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
         f.debug_struct("Item")
+            .field("cas", &self.cas())
+            .field("size", &self.size())
+            .field("header", self.raw.header())
+            .field(
+                "raw",
+                &format!("{:02X?}", unsafe {
+                    &std::slice::from_raw_parts(self.raw.data, self.size())
+                }),
+            )
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for RawItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        f.debug_struct("RawItem")
             .field("size", &self.size())
             .field("header", self.header())
             .field(
@@ -277,7 +331,7 @@ impl std::fmt::Debug for Item {
 
 #[derive(Debug)]
 pub(crate) struct ReservedItem {
-    pub(crate) item: Item,
+    pub(crate) item: RawItem,
     pub(crate) seg: i32,
     pub(crate) offset: usize,
 }

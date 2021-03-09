@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use metrics::Stat;
+
 use core::hash::BuildHasher;
 
 use crate::common::Message;
@@ -11,9 +13,10 @@ use crate::session::*;
 use ahash::RandomState;
 use bytes::BytesMut;
 use config::TimeType;
+use std::convert::TryInto;
 use std::time::SystemTime;
 
-use segcache::SegCache;
+use segcache::{SegCache, SegCacheError};
 
 use rustcommon_time::*;
 
@@ -35,16 +38,6 @@ where
     sessions: Slab<Session>,
     data: SegCache<S>,
 }
-
-// pub struct CacheHasher {}
-
-// impl BuildHasher for CacheHasher {
-//     type Hasher = fasthash::xx::Hasher64;
-
-//     fn build_hasher(&self) -> Self::Hasher {
-//         fasthash::xx::Hasher64::with_seed(0xbb8c484891ec6c86)
-//     }
-// }
 
 pub struct CacheHasher {
     inner: ahash::RandomState,
@@ -82,16 +75,7 @@ impl Worker<CacheHasher> {
         let (session_sender, session_receiver) = sync_channel(128);
         let (message_sender, message_receiver) = sync_channel(128);
 
-        let build_hasher = CacheHasher::default();
-
-        // let hasher = fasthash::xx::Hasher64::with_seed(0xbb8c484891ec6c86);
-        // let build_hasher = RandomState::with_seeds(
-        //         0xbb8c484891ec6c86,
-        //         0x0522a25ae9c769f9,
-        //         0xeed2797b9571bc75,
-        //         0x4feb29c1fbbd59d0,
-        //     );
-        let data = SegCache::new(24, build_hasher, 4096, 1024 * 1024);
+        let data = SegCache::new(24, CacheHasher::default(), 4096, 1024 * 1024);
 
         Ok(Self {
             config,
@@ -228,24 +212,71 @@ impl Worker<CacheHasher> {
         data: &mut SegCache<S>,
     ) {
         let mut found = 0;
+        #[cfg(feature = "stats")]
+        increment_counter!(&Stat::Get);
         for key in request.keys() {
             #[cfg(feature = "stats")]
             increment_counter!(&Stat::GetKey);
-            if let Some(item) = data.get(key) {
-                write_buffer.extend_from_slice(b"VALUE ");
-                write_buffer.extend_from_slice(key);
-                let f = item.optional().unwrap();
-                let flags: u32 = u32::from_be_bytes([f[0], f[1], f[2], f[3]]);
-                write_buffer
-                    .extend_from_slice(format!(" {} {}\r\n", flags, item.value().len()).as_bytes());
-                write_buffer.extend_from_slice(item.value());
-                write_buffer.extend_from_slice(b"\r\n");
-                found += 1;
-                #[cfg(feature = "stats")]
-                increment_counter!(&Stat::GetKeyHit);
-            } else {
-                #[cfg(feature = "stats")]
-                increment_counter!(&Stat::GetKeyMiss);
+            #[cfg(not(feature = "noop"))]
+            {
+                if let Some(item) = data.get(key) {
+                    write_buffer.extend_from_slice(b"VALUE ");
+                    write_buffer.extend_from_slice(key);
+                    let f = item.optional().unwrap();
+                    let flags: u32 = u32::from_be_bytes([f[0], f[1], f[2], f[3]]);
+                    write_buffer.extend_from_slice(
+                        format!(" {} {}\r\n", flags, item.value().len()).as_bytes(),
+                    );
+                    write_buffer.extend_from_slice(item.value());
+                    write_buffer.extend_from_slice(b"\r\n");
+                    found += 1;
+                    #[cfg(feature = "stats")]
+                    increment_counter!(&Stat::GetKeyHit);
+                } else {
+                    #[cfg(feature = "stats")]
+                    increment_counter!(&Stat::GetKeyMiss);
+                }
+            }
+        }
+        debug!(
+            "get request processed, {} out of {} keys found",
+            found,
+            request.keys().len()
+        );
+        write_buffer.extend_from_slice(b"END\r\n");
+    }
+
+    // TODO(bmartin): this does not handle expiry.
+    pub fn process_gets<S: BuildHasher>(
+        request: GetsRequest,
+        write_buffer: &mut BytesMut,
+        data: &mut SegCache<S>,
+    ) {
+        let mut found = 0;
+        #[cfg(feature = "stats")]
+        increment_counter!(&Stat::Get);
+        for key in request.keys() {
+            #[cfg(feature = "stats")]
+            increment_counter!(&Stat::GetKey);
+            #[cfg(not(feature = "noop"))]
+            {
+                if let Some(item) = data.get(key) {
+                    write_buffer.extend_from_slice(b"VALUE ");
+                    write_buffer.extend_from_slice(key);
+                    let f = item.optional().unwrap();
+                    let flags: u32 = u32::from_be_bytes([f[0], f[1], f[2], f[3]]);
+                    write_buffer.extend_from_slice(
+                        format!(" {} {} {}\r\n", flags, item.value().len(), item.cas()).as_bytes(),
+                    );
+                    write_buffer.extend_from_slice(item.value());
+                    write_buffer.extend_from_slice(b"\r\n");
+                    found += 1;
+                    #[cfg(feature = "stats")]
+                    increment_counter!(&Stat::GetKeyHit);
+                } else {
+                    #[cfg(feature = "stats")]
+                    increment_counter!(&Stat::GetKeyMiss);
+                }
             }
         }
         debug!(
@@ -291,24 +322,33 @@ impl Worker<CacheHasher> {
                 }
             }
         };
-        #[allow(clippy::collapsible_if)]
-        if data
-            .insert(
-                request.key(),
-                request.value(),
-                Some(&request.flags().to_be_bytes()),
-                CoarseDuration::from_secs(ttl),
-            )
-            .is_ok()
+        #[cfg(not(feature = "noop"))]
         {
-            #[cfg(feature = "stats")]
-            increment_counter!(&Stat::SetStored);
-            if reply {
-                write_buffer.extend_from_slice(b"STORED\r\n");
+            #[allow(clippy::collapsible_if)]
+            if data
+                .insert(
+                    request.key(),
+                    request.value(),
+                    Some(&request.flags().to_be_bytes()),
+                    CoarseDuration::from_secs(ttl),
+                )
+                .is_ok()
+            {
+                #[cfg(feature = "stats")]
+                increment_counter!(&Stat::SetStored);
+                if reply {
+                    write_buffer.extend_from_slice(b"STORED\r\n");
+                }
+            } else {
+                #[cfg(feature = "stats")]
+                increment_counter!(&Stat::SetNotstored);
+                if reply {
+                    write_buffer.extend_from_slice(b"NOT_STORED\r\n");
+                }
             }
-        } else {
-            #[cfg(feature = "stats")]
-            increment_counter!(&Stat::SetNotstored);
+        }
+        #[cfg(feature = "noop")]
+        {
             if reply {
                 write_buffer.extend_from_slice(b"NOT_STORED\r\n");
             }
@@ -322,7 +362,7 @@ impl Worker<CacheHasher> {
         data: &mut SegCache<S>,
     ) {
         #[cfg(feature = "metrics")]
-        increment_counter!(&Stat::Set);
+        increment_counter!(&Stat::Cas);
         let reply = !request.noreply();
         // convert the expiry to a delta TTL
         let ttl: u32 = match config.time().time_type() {
@@ -348,28 +388,42 @@ impl Worker<CacheHasher> {
                 }
             }
         };
-        // and now into an opaque CoarseInstant
-        let expires = recent_coarse!() + CoarseDuration::from_secs(ttl);
-        // match data.cas(
-        //     request.key(),
-        //     Item::new(request.value(), request.flags(), Some(request.cas())),
-        //     expiry,
-        // ) {
-        //     Ok(_) => {
-        //         // #[cfg(feature = "metrics")]
-        //         // let _ = metrics.increment_counter(Stat::CasStored, 1);
-        //         if reply {
-        //             write_buffer.extend_from_slice(b"STORED\r\n");
-        //         }
-        //     }
-        // Err(_) => {
-        //     // TODO(bmartin): fix stats for CAS
-        //     // let _ = metrics.increment_counter(Stat::SetNotstored, 1);
-        //     if reply {
-        write_buffer.extend_from_slice(b"NOT_STORED\r\n");
-        //     }
-        // }
-        // }
+        match data.cas(
+            request.key(),
+            request.value(),
+            Some(&request.flags().to_be_bytes()),
+            CoarseDuration::from_secs(ttl),
+            request.cas() as u32,
+        ) {
+            Ok(_) => {
+                #[cfg(feature = "metrics")]
+                let _ = metrics.increment_counter(Stat::CasStored, 1);
+                if reply {
+                    write_buffer.extend_from_slice(b"STORED\r\n");
+                }
+            }
+            Err(SegCacheError::NotFound) => {
+                #[cfg(feature = "metrics")]
+                let _ = metrics.increment_counter(Stat::CasNotFound, 1);
+                if reply {
+                    write_buffer.extend_from_slice(b"NOT_FOUND\r\n");
+                }
+            }
+            Err(SegCacheError::Exists) => {
+                #[cfg(feature = "metrics")]
+                let _ = metrics.increment_counter(Stat::CasExists, 1);
+                if reply {
+                    write_buffer.extend_from_slice(b"EXISTS\r\n");
+                }
+            }
+            Err(_) => {
+                #[cfg(feature = "metrics")]
+                let _ = metrics.increment_counter(Stat::CasEx, 1);
+                if reply {
+                    write_buffer.extend_from_slice(b"NOT_STORED\r\n");
+                }
+            }
+        }
     }
 
     // TODO(bmartin): this does not handle expiry.
@@ -540,6 +594,9 @@ where
                     Ok(request) => match request {
                         Request::Get(request) => {
                             Worker::process_get(request, &mut session.write_buffer, &mut self.data)
+                        }
+                        Request::Gets(request) => {
+                            Worker::process_gets(request, &mut session.write_buffer, &mut self.data)
                         }
                         Request::Set(request) => Worker::process_set(
                             &self.config,

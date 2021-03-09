@@ -7,6 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rustcommon-fastmetrics = { git = "https://github.com/twitter/rustcommon" }
+rustcommon-fastmetrics = { git = "https://github.com/brayniac/rustcommon", branch = "time-macros" }
 strum = "0.20.0"
 strum_macros = "0.20.1"

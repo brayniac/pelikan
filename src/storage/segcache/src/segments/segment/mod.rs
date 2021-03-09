@@ -62,7 +62,7 @@ impl<'a> Segment<'a> {
         let mut count = 0;
 
         while offset < max_offset {
-            let item = Item::from_ptr(unsafe { self.data.as_mut_ptr().add(offset) });
+            let item = RawItem::from_ptr(unsafe { self.data.as_mut_ptr().add(offset) });
             if item.klen() == 0 {
                 break;
             }
@@ -135,16 +135,16 @@ impl<'a> Segment<'a> {
 
     // returns the item looking it up from the item_info
     // TODO(bmartin): consider changing the return type here and removing asserts?
-    pub(crate) fn get_item(&mut self, item_info: u64) -> Option<Item> {
+    pub(crate) fn get_item(&mut self, item_info: u64) -> Option<RawItem> {
         assert_eq!(get_seg_id(item_info) as i32, self.id());
         self.get_item_at(get_offset(item_info) as usize)
     }
 
     // returns the item at the given offset
     // TODO(bmartin): consider changing the return type here and removing asserts?
-    pub(crate) fn get_item_at(&mut self, offset: usize) -> Option<Item> {
+    pub(crate) fn get_item_at(&mut self, offset: usize) -> Option<RawItem> {
         assert!(offset <= self.max_item_offset());
-        Some(Item::from_ptr(unsafe {
+        Some(RawItem::from_ptr(unsafe {
             self.data.as_mut_ptr().add(offset)
         }))
     }
