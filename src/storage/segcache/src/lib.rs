@@ -38,7 +38,7 @@ pub const FREQ_BIT_SHIFT: u64 = 44;
 pub const PROC_TS_MASK: u64 = 0x0000_0000_0000_FFFF;
 
 // item constants
-pub const ITEM_HDR_SIZE: usize = std::mem::size_of::<RawItemHeader>();
+pub const ITEM_HDR_SIZE: usize = std::mem::size_of::<ItemHeader>();
 pub const ITEM_MAGIC: u32 = 0xDECAFBAD;
 pub const ITEM_MAGIC_SIZE: usize = std::mem::size_of::<u32>();
 
@@ -107,7 +107,7 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
 
         match ttl_bucket.reserve(size, &mut self.segments) {
             Ok(mut reserved_item) => {
-                reserved_item.item.define(key, value, optional);
+                reserved_item.define(key, value, optional);
                 Ok(reserved_item)
             }
             Err(TtlBucketError::ItemOversized) => Err(SegCacheError::ItemOversized),
@@ -121,20 +121,22 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
     }
 
     fn insert_reserved(&mut self, reserved: ReservedItem) -> Result<(), SegCacheError> {
-        reserved.item.check_magic();
+        reserved.check_magic();
+        let seg_id = reserved.seg();
+        let offset = reserved.offset();
         if self
             .hashtable
             .insert(
-                reserved.item,
-                reserved.seg,
-                reserved.offset as u64,
+                reserved.item(),
+                seg_id,
+                offset as u64,
                 &mut self.segments,
             )
             .is_err()
         {
             let _ = self
                 .segments
-                .remove_at(reserved.seg, reserved.offset, false);
+                .remove_at(seg_id, offset, false);
             Err(SegCacheError::HashTableInsertEx)
         } else {
             Ok(())

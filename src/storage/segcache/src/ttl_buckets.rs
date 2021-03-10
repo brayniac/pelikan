@@ -156,11 +156,7 @@ impl TtlBucket {
                     let ptr = unsafe { segment.data.as_mut_ptr().add(offset) };
 
                     let item = RawItem::from_ptr(ptr);
-                    return Ok(ReservedItem {
-                        item,
-                        offset,
-                        seg: segment.header.id(),
-                    });
+                    return Ok(ReservedItem::new(item, segment.header.id(), offset));
                 }
             }
             self.expand(segments)?;
