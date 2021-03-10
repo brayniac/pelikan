@@ -1,6 +1,4 @@
 use crate::segments::*;
-use core::cmp::max;
-use core::cmp::Ordering;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -9,114 +7,10 @@ pub enum SegmentsError {
     BadSegmentId,
 }
 
-pub struct SegEvict {
-    policy: EvictPolicy,
-    last_update_time: CoarseInstant,
-    ranked_segs: Box<[i32]>,
-    index: usize,
-    rng: Box<Random>,
-}
-
-impl SegEvict {
-    fn least_valuable_seg(&mut self) -> Option<i32> {
-        let index = self.index;
-        self.index += 1;
-        if index < self.ranked_segs.len() {
-            self.ranked_segs[index].as_option()
-        } else {
-            None
-        }
-    }
-
-    fn should_rerank(&mut self) -> bool {
-        let now = recent_coarse!();
-        if self.ranked_segs[0] == -1
-            || (now - self.last_update_time).as_sec() > 1
-            || self.ranked_segs.len() < (self.index + 8)
-        {
-            self.last_update_time = now;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn rerank(&mut self, mut headers: Vec<SegmentHeader>) {
-        match self.policy {
-            EvictPolicy::None | EvictPolicy::Random => {
-                return;
-            }
-            EvictPolicy::Fifo => {
-                headers.sort_by(|a, b| Self::compare_fifo(a, b));
-            }
-            EvictPolicy::Cte => {
-                headers.sort_by(|a, b| Self::compare_cte(a, b));
-            }
-            EvictPolicy::Util => {
-                headers.sort_by(|a, b| Self::compare_util(a, b));
-            }
-        }
-        for (i, id) in self.ranked_segs.iter_mut().enumerate() {
-            *id = headers.get(i).map(|header| header.id()).unwrap_or(-1);
-        }
-    }
-
-    fn compare_fifo(lhs: &SegmentHeader, rhs: &SegmentHeader) -> Ordering {
-        if !lhs.can_evict() {
-            Ordering::Greater
-        } else if !rhs.can_evict() {
-            Ordering::Less
-        } else if max(lhs.create_at(), lhs.merge_at()) > max(rhs.create_at(), rhs.merge_at()) {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        }
-    }
-
-    fn compare_cte(lhs: &SegmentHeader, rhs: &SegmentHeader) -> Ordering {
-        if !lhs.can_evict() {
-            Ordering::Greater
-        } else if !rhs.can_evict() {
-            Ordering::Less
-        } else if (lhs.create_at() + lhs.ttl()) > (rhs.create_at() + rhs.ttl()) {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        }
-    }
-
-    fn compare_util(lhs: &SegmentHeader, rhs: &SegmentHeader) -> Ordering {
-        if !lhs.can_evict() {
-            Ordering::Greater
-        } else if !rhs.can_evict() {
-            Ordering::Less
-        } else if lhs.occupied_size() > rhs.occupied_size() {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        }
-    }
-
-    fn new(nseg: usize, policy: EvictPolicy) -> Self {
-        let mut ranked_segs = Vec::with_capacity(0);
-        ranked_segs.reserve_exact(nseg);
-        ranked_segs.resize(nseg, -1);
-        let ranked_segs = ranked_segs.into_boxed_slice();
-
-        Self {
-            policy,
-            last_update_time: recent_coarse!(),
-            ranked_segs,
-            index: 0,
-            rng: Box::new(rng()),
-        }
-    }
-}
-
 pub struct SegmentsBuilder {
     seg_size: i32,
     segments: i32,
-    evict_policy: EvictPolicy,
+    evict_policy: Policy,
 }
 
 impl Default for SegmentsBuilder {
@@ -124,7 +18,7 @@ impl Default for SegmentsBuilder {
         Self {
             seg_size: 1024 * 1024,
             segments: 64,
-            evict_policy: EvictPolicy::Random,
+            evict_policy: Policy::Random,
         }
     }
 }
@@ -147,7 +41,7 @@ impl SegmentsBuilder {
         self
     }
 
-    pub fn eviction_policy(mut self, policy: EvictPolicy) -> Self {
+    pub fn eviction_policy(mut self, policy: Policy) -> Self {
         self.evict_policy = policy;
         self
     }
@@ -165,7 +59,7 @@ pub struct Segments {
     cap: i32,                      // total number of segments
     free_q: i32,                   // next free segment
     flush_at: CoarseInstant,       // time last flushed
-    evict: Box<SegEvict>,          // eviction config and state
+    evict: Box<Eviction>,          // eviction config and state
 }
 
 impl Default for Segments {
@@ -222,7 +116,7 @@ impl Segments {
             free_q: 0,
             data,
             flush_at: recent_coarse!(),
-            evict: Box::new(SegEvict::new(segments, evict_policy)),
+            evict: Box::new(Eviction::new(segments, evict_policy)),
         }
     }
 
@@ -365,10 +259,10 @@ impl Segments {
 
     // TODO(bmartin): use a result here, not option
     pub(crate) fn least_valuable_seg(&mut self) -> Option<i32> {
-        match self.evict.policy {
-            EvictPolicy::None => None,
-            EvictPolicy::Random => {
-                let mut start: i32 = self.evict.rng.gen();
+        match self.evict.policy() {
+            Policy::None => None,
+            Policy::Random => {
+                let mut start: i32 = self.evict.random();
                 if start < 0 {
                     start *= -1;
                 }

@@ -10,26 +10,19 @@ use thiserror::Error;
 
 use crate::common::ThinOption;
 
+mod eviction;
 mod header;
 mod segment;
 #[allow(clippy::module_inception)]
 mod segments;
 
+pub use eviction::{Eviction, Policy};
 pub use header::{SegmentHeader, SEG_HDR_SIZE};
 pub use segment::Segment;
 pub use segments::Segments;
 
 #[derive(Error, Debug)]
 pub enum SegmentsError {}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum EvictPolicy {
-    None,
-    Random,
-    Fifo,
-    Cte,
-    Util,
-}
 
 #[cfg(test)]
 mod test {

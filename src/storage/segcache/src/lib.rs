@@ -75,7 +75,7 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
     pub fn new(power: u8, hash_builder: S, segments: i32, seg_size: i32) -> Self {
         let hashtable = HashTable::with_hasher(power, hash_builder);
 
-        let evict_policy = EvictPolicy::Random;
+        let evict_policy = Policy::Random;
         let segments = Segments::builder()
             .seg_size(seg_size)
             .segments(segments)
