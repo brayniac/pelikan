@@ -232,7 +232,7 @@ impl TtlBuckets {
         segments: &mut Segments,
     ) {
         for bucket in self.buckets.iter_mut() {
-            &bucket.expire(hashtable, segments);
+            bucket.expire(hashtable, segments);
         }
     }
 }
