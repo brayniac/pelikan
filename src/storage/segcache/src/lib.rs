@@ -322,14 +322,7 @@ where
                         }
                     }
 
-                    let cas = get_cas(bucket.data[0]);
-
-                    let item = Item {
-                        raw: current_item,
-                        cas,
-                    };
-
-                    return Some(item);
+                    return Some(Item::new(current_item, get_cas(bucket.data[0])));
                 }
             }
         }
@@ -362,14 +355,7 @@ where
                 if current_item.key() != key {
                     increment_counter!(&Stat::HashTagCollision);
                 } else {
-                    let cas = get_cas(bucket.data[0]);
-
-                    let item = Item {
-                        raw: current_item,
-                        cas,
-                    };
-
-                    return Some(item);
+                    return Some(Item::new(current_item, get_cas(bucket.data[0])));
                 }
             }
         }

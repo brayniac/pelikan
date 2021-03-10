@@ -19,11 +19,18 @@ const DEL_MASK: u8 = 0b01000000;
 const NUM_MASK: u8 = 0b10000000;
 
 pub struct Item {
-    pub(crate) cas: u32,
-    pub(crate) raw: RawItem,
+    cas: u32,
+    raw: RawItem,
 }
 
 impl Item {
+    pub fn new(raw: RawItem, cas: u32) -> Self {
+        Item {
+            raw,
+            cas,
+        }
+    }
+
     pub fn key(&self) -> &[u8] {
         self.raw.key()
     }
