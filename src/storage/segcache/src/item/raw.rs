@@ -5,7 +5,7 @@ use crate::ITEM_HDR_SIZE;
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct RawItem {
-    pub(crate) data: *mut u8,
+    data: *mut u8,
 }
 
 impl RawItem {
