@@ -50,10 +50,12 @@ where
 
         let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        let chain_len = chain_len(bucket.data[0]);
-        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+        // let chain_len = chain_len(bucket.data[0]);
+        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
 
-        let curr_ts = self.started.elapsed().as_sec() as u64 & PROC_TS_MASK;
+        let n_item_slot = 8;
+
+        let curr_ts = (recent_coarse!() - self.started).as_sec() as u64 & PROC_TS_MASK;
         if curr_ts != get_ts(bucket.data[0]) {
             bucket.data[0] = (bucket.data[0] & !TS_MASK) | (curr_ts << TS_BIT_SHIFT);
             for i in 1..n_item_slot {
@@ -105,8 +107,10 @@ where
 
         let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        let chain_len = chain_len(bucket.data[0]);
-        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+        // let chain_len = chain_len(bucket.data[0]);
+        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        let n_item_slot = 8;
 
         // NOTE: this is only valid for the first bucket in a chain, note that
         // we start scanning from 1 not 0. Chaining is currently not implemented
@@ -134,8 +138,10 @@ where
 
         let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        let chain_len = chain_len(bucket.data[0]);
-        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+        // let chain_len = chain_len(bucket.data[0]);
+        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        let n_item_slot = 8;
 
         // NOTE: this is only valid for the first bucket in a chain, note that
         // we start scanning from 1 not 0. Chaining is currently not implemented
@@ -171,8 +177,10 @@ where
 
         let mut insert_item_info = tag | ((seg as u64) << 20) | (offset >> 3);
 
-        let chain_len = chain_len(bucket.data[0]);
-        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+        // let chain_len = chain_len(bucket.data[0]);
+        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        let n_item_slot = 8;
 
         // NOTE: this is only valid for the first bucket in a chain, note that
         // we start scanning from 1 not 0. Chaining is currently not implemented
@@ -222,8 +230,10 @@ where
             return Err(SegCacheError::Exists);
         }
 
-        let chain_len = chain_len(bucket.data[0]);
-        let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+        // let chain_len = chain_len(bucket.data[0]);
+        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        let n_item_slot = 8;
 
         // NOTE: this is only valid for the first bucket in a chain, note that
         // we start scanning from 1 not 0. Chaining is currently not implemented
@@ -270,17 +280,18 @@ where
 
         let mut deleted = false;
 
-        let chain_len = chain_len(self.data.get(bucket_id as usize).unwrap().data[0]);
+        // let chain_len = chain_len(self.data.get(bucket_id as usize).unwrap().data[0]);
 
-        for k in 0..=chain_len {
+        // for k in 0..=chain_len {
+            let n_item_slot = 8;
             let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-            let n_item_slot = if k == chain_len { 8 } else { 7 };
+            // let n_item_slot = if k == chain_len { 8 } else { 7 };
 
-            for i in 0..n_item_slot {
-                if bucket_id == first_bucket_id && i == 0 {
-                    continue;
-                }
+            for i in 1..n_item_slot {
+                // if bucket_id == first_bucket_id && i == 0 {
+                //     continue;
+                // }
 
                 let current_item_info = bucket.data[i];
 
@@ -296,7 +307,7 @@ where
                     }
                 }
             }
-        }
+        // }
 
         deleted
     }
@@ -314,17 +325,18 @@ where
         let mut outdated = true;
         let mut first_match = true;
 
-        let chain_len = chain_len(self.data.get(bucket_id as usize).unwrap().data[0]);
+        // let chain_len = chain_len(self.data.get(bucket_id as usize).unwrap().data[0]);
 
-        for k in 0..=chain_len {
+        // for k in 0..=chain_len {
             let bucket = self.data.get_mut(bucket_id as usize).unwrap();
+            let n_item_slot = 8;
 
-            let n_item_slot = if k == chain_len { 8 } else { 7 };
+            // let n_item_slot = if k == chain_len { 8 } else { 7 };
 
-            for i in 0..n_item_slot {
-                if bucket_id == first_bucket_id && i == 0 {
-                    continue;
-                }
+            for i in 1..n_item_slot {
+                // if bucket_id == first_bucket_id && i == 0 {
+                //     continue;
+                // }
 
                 let current_item_info = clear_freq(bucket.data[i]);
                 if get_tag(current_item_info) != tag {
@@ -356,7 +368,7 @@ where
                     }
                 }
             }
-        }
+        // }
 
         evicted
     }

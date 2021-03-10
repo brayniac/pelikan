@@ -196,20 +196,53 @@ impl Segments {
         }
     }
 
+    // pub fn evict(&mut self) -> Option<i32> {
+    //     // avoid lifetime nonsense by just returning a segment id
+    //     if let Some(s) = self.segments.pop_free() {
+    //         Some(s)
+    //     } else if let Some(id) = self.segments.least_valuable_seg() {
+    //         if self.evict_segment(id).is_ok() {
+    //             Some(id)
+    //         } else {
+    //             None
+    //         }
+    //     } else {
+    //         None
+    //     }
+    // }
+
+    fn unlink(&mut self, id: i32) {
+        let id_idx = id as usize;
+        if let Some(next) = self.headers[id_idx].next_seg() {
+            let prev = self.headers[id_idx].prev_seg().unwrap_or(-1);
+            self.headers[next as usize].set_prev_seg(prev);
+        }
+
+        if let Some(prev) = self.headers[id_idx].prev_seg() {
+            let next = self.headers[id_idx].next_seg().unwrap_or(-1);
+            self.headers[prev as usize].set_next_seg(next);
+        }
+    }
+
+    fn push_front(&mut self, this: i32, head: i32) {
+        let this_idx = this as usize;
+        self.headers[this_idx].set_next_seg(head);
+        self.headers[this_idx].set_prev_seg(-1);
+
+        if head.is_some() {
+            let head_idx = head as usize;
+            debug_assert!(self.headers[head_idx].prev_seg().is_none());
+            self.headers[head_idx].set_prev_seg(this);
+        }
+    }
+
     // adds a segment to the free queue
     pub(crate) fn push_free(&mut self, id: i32) {
         // unlinks the next segment
-        if let Some(next) = self.headers[id as usize].next_seg() {
-            self.headers[next as usize].set_prev_seg(-1);
-        }
+        self.unlink(id);
 
-        self.headers[id as usize].set_next_seg(self.free_q);
-        self.headers[id as usize].set_prev_seg(-1);
-
-        if self.free_q.is_some() {
-            debug_assert!(self.headers[self.free_q as usize].prev_seg().is_none());
-            self.headers[self.free_q as usize].set_prev_seg(id);
-        }
+        // relinks it as the free queue head
+        self.push_front(id, self.free_q);
         self.free_q = id;
 
         assert!(!self.headers[id as usize].evictable());
