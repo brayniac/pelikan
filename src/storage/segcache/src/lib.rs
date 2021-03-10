@@ -440,6 +440,7 @@ where
         }
 
         if insert_item_info == 0 {
+            bucket.data[0] += 1;
             Ok(())
         } else {
             Err(())
