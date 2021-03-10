@@ -29,9 +29,14 @@ fn main() {
     std::thread::sleep(Duration::from_secs(10));
 
     debug!("beginning tests");
-    println!("");
+    println!();
 
     test("get empty (key: 0)", &[("get 0\r\n", Some("END\r\n"))]);
+    test("gets empty (key: 0)", &[("gets 0\r\n", Some("END\r\n"))]);
+    test(
+        "cas not found (key: 0)",
+        &[("cas 0 0 0 1 0\r\n0\r\n", Some("NOT_FOUND\r\n"))],
+    );
     test(
         "set value (key: 0)",
         &[("set 0 0 0 1\r\n1\r\n", Some("STORED\r\n"))],
@@ -39,6 +44,18 @@ fn main() {
     test(
         "get value (key: 0)",
         &[("get 0\r\n", Some("VALUE 0 0 1\r\n1\r\nEND\r\n"))],
+    );
+    test(
+        "gets value (key: 0)",
+        &[("gets 0\r\n", Some("VALUE 0 0 1 1\r\n1\r\nEND\r\n"))],
+    );
+    test(
+        "cas fail (key: 0)",
+        &[("cas 0 0 0 1 0\r\n1\r\n", Some("EXISTS\r\n"))],
+    );
+    test(
+        "cas success (key: 0)",
+        &[("cas 0 0 0 1 1\r\n1\r\n", Some("STORED\r\n"))],
     );
     test(
         "add value (key: 0)",

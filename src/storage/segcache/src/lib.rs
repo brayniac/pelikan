@@ -16,26 +16,33 @@ use core::hash::BuildHasher;
 use std::convert::TryInto;
 use std::hash::Hasher;
 
-pub const TAG_MASK: u64 = 0xFFF0000000000000;
-pub const FREQ_MASK: u64 = 0x000FF00000000000;
-pub const SEG_ID_MASK: u64 = 0x00000FFFFFF00000;
-pub const OFFSET_MASK: u64 = 0x00000000000FFFFF;
+// item info masks
+pub const TAG_MASK: u64 = 0xFFF0_0000_0000_0000;
+pub const FREQ_MASK: u64 = 0x000F_F000_0000_0000;
+pub const SEG_ID_MASK: u64 = 0x0000_0FFF_FFF0_0000;
+pub const OFFSET_MASK: u64 = 0x0000_0000_000F_FFFF;
 
+// consts for frequency
+pub const CLEAR_FREQ_SMOOTH_MASK: u64 = 0xFFF7_FFFF_FFFF_FFFF;
 
+// bucket info masks and shifts
+pub const LOCK_MASK: u64 = 0xFF00_0000_0000_0000;
+pub const BUCKET_CHAIN_LEN_MASK: u64 = 0x00FF_0000_0000_0000;
+pub const TS_MASK: u64 =  0x0000_FFFF_0000_0000;
+pub const CAS_MASK: u64 = 0x0000_0000_FFFF_FFFF;
 
+pub const TS_BIT_SHIFT: u64 = 32;
 pub const FREQ_BIT_SHIFT: u64 = 44;
 
-pub const LOCK_MASK: u64 = 0xFF00000000000000;
-pub const BUCKET_CHAIN_LEN_MASK: u64 = 0x00FF000000000000;
-pub const TS_MASK: u64 =  0x0000FFFF00000000;
-pub const CAS_MASK: u64 = 0x00000000FFFFFFFF;
+// only use the lower 16-bits of the timestamp
+pub const PROC_TS_MASK: u64 = 0x0000_0000_0000_FFFF;
 
-// ITEM CONSTS
+// item constants
 pub const ITEM_HDR_SIZE: usize = std::mem::size_of::<RawItemHeader>();
 pub const ITEM_MAGIC: u32 = 0xDECAFBAD;
 pub const ITEM_MAGIC_SIZE: usize = std::mem::size_of::<u32>();
 
-// Segment
+// segment constants
 pub const SEG_MAGIC: u64 = 0xBADC0FFEEBADCAFE;
 
 mod common;
@@ -246,8 +253,9 @@ pub struct HashTable<S: BuildHasher> {
     mask: u64,
     data: Box<[HashBucket]>,
     rng: Box<Random>,
+    started: CoarseInstant,
     // this pads the struct out to a full cache line
-    _pad0: u128,
+    _pad0: u64,
 }
 
 impl<S> HashTable<S>
@@ -273,6 +281,7 @@ where
             mask,
             data: data.into_boxed_slice(),
             rng: Box::new(rng()),
+            started: recent_coarse!(),
             _pad0: 0,
         }
     }
@@ -289,6 +298,14 @@ where
 
         let chain_len = chain_len(bucket.data[0]);
         let n_item_slot = if chain_len > 0 { 7 } else { 8 };
+
+        let curr_ts = self.started.elapsed().as_sec() as u64 & PROC_TS_MASK;
+        if curr_ts != get_ts(bucket.data[0]) {
+            bucket.data[0] = (bucket.data[0] & !TS_MASK) | (curr_ts << TS_BIT_SHIFT);
+            for i in 1..n_item_slot {
+                bucket.data[i] &= CLEAR_FREQ_SMOOTH_MASK;
+            }
+        }
 
         // NOTE: this is only valid for the first bucket in a chain, note that
         // we start scanning from 1 not 0. Chaining is currently not implemented
@@ -629,6 +646,11 @@ const fn get_freq(item_info: u64) -> u64 {
 #[inline]
 const fn get_cas(bucket_info: u64) -> u32 {
     (bucket_info & CAS_MASK) as u32
+}
+
+#[inline]
+const fn get_ts(bucket_info: u64) -> u64 {
+    bucket_info & TS_MASK
 }
 
 #[inline]
