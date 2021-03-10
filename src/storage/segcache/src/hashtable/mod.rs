@@ -1,5 +1,7 @@
 use crate::*;
 
+const N_ITEM_SLOT: usize = 8;
+
 #[repr(C)]
 pub struct HashTable<S: BuildHasher> {
     hash_builder: Box<S>, // boxed so the size is consistent independent of type
@@ -50,22 +52,15 @@ where
 
         let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        // let chain_len = chain_len(bucket.data[0]);
-        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
-
-        let n_item_slot = 8;
-
         let curr_ts = (recent_coarse!() - self.started).as_sec() as u64 & PROC_TS_MASK;
         if curr_ts != get_ts(bucket.data[0]) {
             bucket.data[0] = (bucket.data[0] & !TS_MASK) | (curr_ts << TS_BIT_SHIFT);
-            for i in 1..n_item_slot {
+            for i in 1..N_ITEM_SLOT {
                 bucket.data[i] &= CLEAR_FREQ_SMOOTH_MASK;
             }
         }
 
-        // NOTE: this is only valid for the first bucket in a chain, note that
-        // we start scanning from 1 not 0. Chaining is currently not implemented
-        for i in 1..n_item_slot {
+        for i in 1..N_ITEM_SLOT {
             let current_info = bucket.data[i];
 
             if get_tag(current_info) == tag {
@@ -107,14 +102,7 @@ where
 
         let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        // let chain_len = chain_len(bucket.data[0]);
-        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
-
-        let n_item_slot = 8;
-
-        // NOTE: this is only valid for the first bucket in a chain, note that
-        // we start scanning from 1 not 0. Chaining is currently not implemented
-        for i in 1..n_item_slot {
+        for i in 1..N_ITEM_SLOT {
             let current_info = bucket.data[i];
 
             if get_tag(current_info) == tag {
@@ -138,14 +126,7 @@ where
 
         let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        // let chain_len = chain_len(bucket.data[0]);
-        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
-
-        let n_item_slot = 8;
-
-        // NOTE: this is only valid for the first bucket in a chain, note that
-        // we start scanning from 1 not 0. Chaining is currently not implemented
-        for i in 1..n_item_slot {
+        for i in 1..N_ITEM_SLOT {
             let current_info = bucket.data[i];
 
             if get_tag(current_info) == tag {
@@ -177,14 +158,7 @@ where
 
         let mut insert_item_info = tag | ((seg as u64) << 20) | (offset >> 3);
 
-        // let chain_len = chain_len(bucket.data[0]);
-        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
-
-        let n_item_slot = 8;
-
-        // NOTE: this is only valid for the first bucket in a chain, note that
-        // we start scanning from 1 not 0. Chaining is currently not implemented
-        for i in 1..n_item_slot {
+        for i in 1..N_ITEM_SLOT {
             let current_item_info = bucket.data[i];
             if get_tag(current_item_info) != tag {
                 if insert_item_info != 0 && current_item_info == 0 {
@@ -230,14 +204,7 @@ where
             return Err(SegCacheError::Exists);
         }
 
-        // let chain_len = chain_len(bucket.data[0]);
-        // let n_item_slot = if chain_len > 0 { 7 } else { 8 };
-
-        let n_item_slot = 8;
-
-        // NOTE: this is only valid for the first bucket in a chain, note that
-        // we start scanning from 1 not 0. Chaining is currently not implemented
-        for i in 1..n_item_slot {
+        for i in 1..N_ITEM_SLOT {
             let current_info = bucket.data[i];
 
             if get_tag(current_info) == tag {
@@ -280,34 +247,23 @@ where
 
         let mut deleted = false;
 
-        // let chain_len = chain_len(self.data.get(bucket_id as usize).unwrap().data[0]);
+        let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        // for k in 0..=chain_len {
-            let n_item_slot = 8;
-            let bucket = self.data.get_mut(bucket_id as usize).unwrap();
+        for i in 1..N_ITEM_SLOT {
+            let current_item_info = bucket.data[i];
 
-            // let n_item_slot = if k == chain_len { 8 } else { 7 };
-
-            for i in 1..n_item_slot {
-                // if bucket_id == first_bucket_id && i == 0 {
-                //     continue;
-                // }
-
-                let current_item_info = bucket.data[i];
-
-                if get_tag(current_item_info) == tag {
-                    let current_item = segments.get_item(current_item_info).unwrap();
-                    if current_item.key() != key {
-                        increment_counter!(&Stat::HashTagCollision);
-                        continue;
-                    } else {
-                        let _ = segments.remove_item(current_item_info, !deleted);
-                        bucket.data[i] = 0;
-                        deleted = true;
-                    }
+            if get_tag(current_item_info) == tag {
+                let current_item = segments.get_item(current_item_info).unwrap();
+                if current_item.key() != key {
+                    increment_counter!(&Stat::HashTagCollision);
+                    continue;
+                } else {
+                    let _ = segments.remove_item(current_item_info, !deleted);
+                    bucket.data[i] = 0;
+                    deleted = true;
                 }
             }
-        // }
+        }
 
         deleted
     }
@@ -325,50 +281,39 @@ where
         let mut outdated = true;
         let mut first_match = true;
 
-        // let chain_len = chain_len(self.data.get(bucket_id as usize).unwrap().data[0]);
+        let bucket = self.data.get_mut(bucket_id as usize).unwrap();
 
-        // for k in 0..=chain_len {
-            let bucket = self.data.get_mut(bucket_id as usize).unwrap();
-            let n_item_slot = 8;
+        for i in 1..N_ITEM_SLOT {
+            let current_item_info = clear_freq(bucket.data[i]);
+            if get_tag(current_item_info) != tag {
+                continue;
+            }
 
-            // let n_item_slot = if k == chain_len { 8 } else { 7 };
-
-            for i in 1..n_item_slot {
-                // if bucket_id == first_bucket_id && i == 0 {
-                //     continue;
-                // }
-
-                let current_item_info = clear_freq(bucket.data[i]);
-                if get_tag(current_item_info) != tag {
+            if get_seg_id(current_item_info) == segment.id() {
+                let current_item = segment.get_item(current_item_info).unwrap();
+                if current_item.key() != key {
+                    increment_counter!(&Stat::HashTagCollision);
                     continue;
                 }
 
-                if get_seg_id(current_item_info) == segment.id() {
-                    let current_item = segment.get_item(current_item_info).unwrap();
-                    if current_item.key() != key {
-                        increment_counter!(&Stat::HashTagCollision);
-                        continue;
-                    }
-
-                    if first_match {
-                        if evict_item_info == current_item_info {
-                            segment.remove_item(current_item_info, false);
-                            bucket.data[i] = 0;
-                            outdated = false;
-                            evicted = true;
-                        }
-                        first_match = false;
-                        continue;
-                    } else {
-                        if !evicted && current_item_info == evict_item_info {
-                            evicted = true;
-                        }
-                        segment.remove_item(bucket.data[i], !outdated);
+                if first_match {
+                    if evict_item_info == current_item_info {
+                        segment.remove_item(current_item_info, false);
                         bucket.data[i] = 0;
+                        outdated = false;
+                        evicted = true;
                     }
+                    first_match = false;
+                    continue;
+                } else {
+                    if !evicted && current_item_info == evict_item_info {
+                        evicted = true;
+                    }
+                    segment.remove_item(bucket.data[i], !outdated);
+                    bucket.data[i] = 0;
                 }
             }
-        // }
+        }
 
         evicted
     }
