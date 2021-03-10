@@ -133,6 +133,4 @@ impl Eviction {
             Ordering::Less
         }
     }
-
-    
 }
