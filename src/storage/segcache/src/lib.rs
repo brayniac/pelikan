@@ -28,7 +28,7 @@ pub const CLEAR_FREQ_SMOOTH_MASK: u64 = 0xFFF7_FFFF_FFFF_FFFF;
 // bucket info masks and shifts
 pub const LOCK_MASK: u64 = 0xFF00_0000_0000_0000;
 pub const BUCKET_CHAIN_LEN_MASK: u64 = 0x00FF_0000_0000_0000;
-pub const TS_MASK: u64 =  0x0000_FFFF_0000_0000;
+pub const TS_MASK: u64 = 0x0000_FFFF_0000_0000;
 pub const CAS_MASK: u64 = 0x0000_0000_FFFF_FFFF;
 
 pub const TS_BIT_SHIFT: u64 = 32;
@@ -182,12 +182,8 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
         cas: u32,
     ) -> Result<(), SegCacheError> {
         match self.hashtable.try_update_cas(key, cas, &mut self.segments) {
-            Ok(()) => {
-                self.insert(key, value, optional, ttl)
-            }
-            Err(e) => {
-                Err(e)
-            }
+            Ok(()) => self.insert(key, value, optional, ttl),
+            Err(e) => Err(e),
         }
     }
 
@@ -464,7 +460,12 @@ where
         }
     }
 
-    pub fn try_update_cas(&mut self, key: &[u8], cas: u32, segments: &mut Segments) -> Result<(), SegCacheError> {
+    pub fn try_update_cas(
+        &mut self,
+        key: &[u8],
+        cas: u32,
+        segments: &mut Segments,
+    ) -> Result<(), SegCacheError> {
         increment_counter!(&Stat::HashLookup);
         let hash = self.hash(key);
         let tag = tag_from_hash(hash);
