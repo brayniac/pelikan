@@ -14,7 +14,6 @@ pub use error::Error;
 
 use constants::*;
 
-
 pub struct TtlBucket {
     head: i32,
     tail: i32,

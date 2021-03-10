@@ -3,8 +3,8 @@
 // result in UB when fields are referenced. Fields that require access by
 // reference must be strategically placed to ensure alignment and avoid UB.
 
-use crate::ITEM_MAGIC;
 use crate::item::*;
+use crate::ITEM_MAGIC;
 
 #[repr(C)]
 #[repr(packed)]

@@ -28,8 +28,8 @@ extern crate metrics;
 use rustcommon_time::*;
 
 use core::hash::BuildHasher;
-use std::convert::TryInto;
 use core::hash::Hasher;
+use std::convert::TryInto;
 
 mod common;
 mod hashtable;
@@ -41,11 +41,11 @@ mod ttl_buckets;
 pub use item::Item;
 pub use segments::Policy;
 
+pub(crate) use crate::rand::*;
 pub(crate) use common::*;
 pub(crate) use hashtable::*;
 pub(crate) use item::*;
 pub(crate) use metrics::Stat;
-pub(crate) use crate::rand::*;
 pub(crate) use segments::*;
 pub(crate) use ttl_buckets::TtlBuckets;
 
@@ -279,11 +279,10 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::common::ITEM_HDR_SIZE;
     use super::*;
+    use crate::common::ITEM_HDR_SIZE;
     use ahash::RandomState;
 
     // Use ahash for testing with fixed seeds. Reproducible testing is important
@@ -298,7 +297,6 @@ mod tests {
 
     #[test]
     fn sizes() {
-
         #[cfg(feature = "magic")]
         assert_eq!(ITEM_HDR_SIZE, 9);
 
@@ -316,13 +314,19 @@ mod tests {
 
     #[test]
     fn init() {
-        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(4096)
+            .hasher(build_hasher())
+            .build();
         assert_eq!(cache.items(), 0);
     }
 
     #[test]
     fn get_free_seg() {
-        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(4096)
+            .hasher(build_hasher())
+            .build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         let seg = cache.get_new_segment();
@@ -333,7 +337,10 @@ mod tests {
     #[test]
     fn get() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(4096)
+            .hasher(build_hasher())
+            .build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         assert!(cache.get(b"coffee").is_none());
@@ -349,7 +356,10 @@ mod tests {
     #[test]
     fn overwrite() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(4096)
+            .hasher(build_hasher())
+            .build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         assert!(cache.get(b"drink").is_none());
@@ -388,7 +398,10 @@ mod tests {
     #[test]
     fn delete() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(4096)
+            .hasher(build_hasher())
+            .build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         assert!(cache.get(b"drink").is_none());
@@ -410,7 +423,12 @@ mod tests {
     #[test]
     fn collisions_2() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::builder().seg_size(64).segments(2).power(3).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(64)
+            .segments(2)
+            .power(3)
+            .hasher(build_hasher())
+            .build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 2);
 
@@ -429,7 +447,11 @@ mod tests {
     #[test]
     fn collisions() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::builder().seg_size(4096).power(3).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(4096)
+            .power(3)
+            .hasher(build_hasher())
+            .build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
 
@@ -461,7 +483,12 @@ mod tests {
         let key_size = 1;
         let value_size = 512;
 
-        let mut cache = SegCache::builder().seg_size(seg_size).segments(segments as i32).power(16).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(seg_size)
+            .segments(segments as i32)
+            .power(16)
+            .hasher(build_hasher())
+            .build();
 
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), segments);
@@ -494,7 +521,12 @@ mod tests {
         let key_size = 2;
         let value_size = 1;
 
-        let mut cache = SegCache::builder().seg_size(seg_size).segments(segments as i32).power(16).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(seg_size)
+            .segments(segments as i32)
+            .power(16)
+            .hasher(build_hasher())
+            .build();
 
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), segments);
@@ -527,7 +559,12 @@ mod tests {
         let segments = 64;
         let seg_size = 2 * 1024;
 
-        let mut cache = SegCache::builder().seg_size(seg_size).segments(segments as i32).power(16).hasher(build_hasher()).build();
+        let mut cache = SegCache::builder()
+            .seg_size(seg_size)
+            .segments(segments as i32)
+            .power(16)
+            .hasher(build_hasher())
+            .build();
 
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), segments);

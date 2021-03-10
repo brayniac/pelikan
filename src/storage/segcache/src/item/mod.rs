@@ -19,7 +19,7 @@ const DEL_MASK: u8 = 0b01000000;
 const NUM_MASK: u8 = 0b10000000;
 
 /// An `Item` represents a stored item and is used in the public interface of
-/// `SegCache`. 
+/// `SegCache`.
 pub struct Item {
     cas: u32,
     raw: RawItem,
@@ -28,10 +28,7 @@ pub struct Item {
 impl Item {
     /// Creates a new `Item` from its parts
     pub(crate) fn new(raw: RawItem, cas: u32) -> Self {
-        Item {
-            raw,
-            cas,
-        }
+        Item { raw, cas }
     }
 
     /// Borrow the item key

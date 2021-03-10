@@ -108,4 +108,3 @@ pub const fn chain_len(bucket_info: u64) -> u64 {
 pub const fn build_item_info(tag: u64, seg_id: u64, offset: u64) -> u64 {
     tag | (seg_id << 20) | (offset >> 3)
 }
-
