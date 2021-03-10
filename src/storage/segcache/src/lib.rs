@@ -403,7 +403,7 @@ where
                 if current_item.key() != key {
                     increment_counter!(&Stat::HashTagCollision);
                 } else {
-                    return Some(get_freq(current_info));
+                    return Some(get_freq(current_info) & 0x7F);
                 }
             }
         }
