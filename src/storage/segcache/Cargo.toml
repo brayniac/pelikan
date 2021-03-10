@@ -20,7 +20,7 @@ magic = []
 debug = ["magic"]
 
 # default set of enabled features
-default = ["debug"]
+default = []
 
 [dependencies]
 metrics = { path = "../../rust/metrics" }

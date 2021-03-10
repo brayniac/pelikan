@@ -2,6 +2,23 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+//! This crate is a Rust implementation of the Segcache storage layer.
+//!
+//! It is a high-throughput and memory-efficient key-value store with eager
+//! expiration. Segcache uses a segment-structured design that stores data in
+//! fixed-size segments, grouping objects with nearby expiration time into the
+//! same segment, and lifting most per-object metadata into the shared segment
+//! header. This reduces object metadata by 88% compared to Memcached.
+//!
+//! Goals:
+//! * high-throughput item storage
+//! * eager expiration of items
+//! * low metadata overhead
+//!
+//! Non-goals:
+//! * not designed for concurrent access
+//!
+
 #[macro_use]
 extern crate rustcommon_logger;
 
