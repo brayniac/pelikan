@@ -31,7 +31,7 @@ fn ahash_get_benchmark(c: &mut Criterion) {
             0xeed2797b9571bc75,
             0x4feb29c1fbbd59d0,
         );
-        let mut cache = SegCache::new(16, build_hasher, 64, 1024 * 1024);
+        let mut cache = SegCache::builder().power(16).hasher(build_hasher).segments(64).seg_size(1024 * 1024).build();
 
         let mut key = 0;
 
@@ -89,7 +89,7 @@ fn ahash_set_benchmark(c: &mut Criterion) {
                 0xeed2797b9571bc75,
                 0x4feb29c1fbbd59d0,
             );
-            let mut cache = SegCache::new(16, build_hasher, 64, 1024 * 1024);
+            let mut cache = SegCache::builder().power(16).hasher(build_hasher).segments(64).seg_size(1024 * 1024).build();
 
             let mut key = 0;
             let mut value = 0;
@@ -111,6 +111,7 @@ fn ahash_set_benchmark(c: &mut Criterion) {
     }
 }
 
+#[derive(Default)]
 pub struct XxHasher64 {}
 
 impl BuildHasher for XxHasher64 {
@@ -131,7 +132,8 @@ fn xxhash64_get_benchmark(c: &mut Criterion) {
         let mut key = 0;
 
         // launch the server
-        let mut cache = SegCache::new(16, XxHasher64 {}, 64, 1024 * 1024);
+        let mut cache = SegCache::builder().power(16).hasher(XxHasher64 {}).segments(64).seg_size(1024 * 1024).build();
+
         group.bench_function(&format!("{}b/0b", key_size), |b| {
             b.iter(|| {
                 cache.get(&keys[key]);
@@ -158,7 +160,8 @@ fn xxhash64_set_benchmark(c: &mut Criterion) {
             let mut value = 0;
 
             // launch the server
-            let mut cache = SegCache::new(16, XxHasher64 {}, 64, 1024 * 1024);
+            let mut cache = SegCache::builder().power(16).hasher(XxHasher64 {}).segments(64).seg_size(1024 * 1024).build();
+
             group.bench_function(&format!("{}b/{}b", key_size, value_size), |b| {
                 b.iter(|| {
                     let _ = cache.insert(&keys[key], &values[value], None, ttl);
