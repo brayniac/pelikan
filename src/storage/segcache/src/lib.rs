@@ -126,17 +126,10 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
         let offset = reserved.offset();
         if self
             .hashtable
-            .insert(
-                reserved.item(),
-                seg_id,
-                offset as u64,
-                &mut self.segments,
-            )
+            .insert(reserved.item(), seg_id, offset as u64, &mut self.segments)
             .is_err()
         {
-            let _ = self
-                .segments
-                .remove_at(seg_id, offset, false);
+            let _ = self.segments.remove_at(seg_id, offset, false);
             Err(SegCacheError::HashTableInsertEx)
         } else {
             Ok(())
