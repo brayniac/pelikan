@@ -19,7 +19,7 @@ mod segments;
 pub use eviction::{Eviction, Policy};
 pub use header::{SegmentHeader, SEG_HDR_SIZE};
 pub use segment::Segment;
-pub use segments::Segments;
+pub use segments::{Segments, SegmentsBuilder};
 
 #[derive(Error, Debug)]
 pub enum SegmentsError {}

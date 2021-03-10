@@ -11,7 +11,8 @@ fn main() {
         0xeed2797b9571bc75,
         0x4feb29c1fbbd59d0,
     );
-    let mut cache = SegCache::new(22, build_hasher, 128, 1024 * 1024);
+
+    let mut cache = SegCache::builder().segments(128).power(22).hasher(build_hasher).build();
 
     let (keys, values) = key_values(5, 1_000_000, 1, 1_000_000);
 

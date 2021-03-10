@@ -7,33 +7,13 @@ use std::sync::Mutex;
 
 use crate::common::ThinOption;
 
-use thiserror::Error;
+mod constants;
+mod error;
 
-const N_BUCKET_PER_STEP_N_BIT: usize = 8;
-const N_BUCKET_PER_STEP: usize = 1 << N_BUCKET_PER_STEP_N_BIT;
+pub use error::Error;
 
-const TTL_BUCKET_INTERVAL_N_BIT_1: usize = 3;
-const TTL_BUCKET_INTERVAL_N_BIT_2: usize = 7;
-const TTL_BUCKET_INTERVAL_N_BIT_3: usize = 11;
-const TTL_BUCKET_INTERVAL_N_BIT_4: usize = 15;
+use constants::*;
 
-const TTL_BUCKET_INTERVAL_1: usize = 1 << TTL_BUCKET_INTERVAL_N_BIT_1;
-const TTL_BUCKET_INTERVAL_2: usize = 1 << TTL_BUCKET_INTERVAL_N_BIT_2;
-const TTL_BUCKET_INTERVAL_3: usize = 1 << TTL_BUCKET_INTERVAL_N_BIT_3;
-const TTL_BUCKET_INTERVAL_4: usize = 1 << TTL_BUCKET_INTERVAL_N_BIT_4;
-
-const TTL_BOUNDARY_1: i32 = 1 << (TTL_BUCKET_INTERVAL_N_BIT_1 + N_BUCKET_PER_STEP_N_BIT);
-const TTL_BOUNDARY_2: i32 = 1 << (TTL_BUCKET_INTERVAL_N_BIT_2 + N_BUCKET_PER_STEP_N_BIT);
-const TTL_BOUNDARY_3: i32 = 1 << (TTL_BUCKET_INTERVAL_N_BIT_3 + N_BUCKET_PER_STEP_N_BIT);
-const TTL_BOUNDARY_4: i32 = 1 << (TTL_BUCKET_INTERVAL_N_BIT_4 + N_BUCKET_PER_STEP_N_BIT);
-
-#[derive(Error, Debug)]
-pub enum TtlBucketError {
-    #[error("item is oversized")]
-    ItemOversized,
-    #[error("ttl bucket expansion failed, no free segments")]
-    NoFreeSegments,
-}
 
 pub struct TtlBucket {
     head: i32,
@@ -97,7 +77,7 @@ impl TtlBucket {
     }
 
     /// Expands the `TtlBucket` by requesting another segment
-    fn expand(&mut self, segments: &mut Segments) -> Result<(), TtlBucketError> {
+    fn expand(&mut self, segments: &mut Segments) -> Result<(), Error> {
         if let Some(id) = segments.pop_free() {
             {
                 if self.tail.is_some() {
@@ -123,7 +103,7 @@ impl TtlBucket {
             segment.header.set_accessible(true);
             Ok(())
         } else {
-            Err(TtlBucketError::NoFreeSegments)
+            Err(Error::NoFreeSegments)
         }
     }
 
@@ -131,14 +111,14 @@ impl TtlBucket {
         &mut self,
         size: usize,
         segments: &mut Segments,
-    ) -> Result<ReservedItem, TtlBucketError> {
+    ) -> Result<ReservedItem, Error> {
         trace!("reserving: {} bytes for ttl: {}", size, self.ttl);
 
         let seg_size = segments.segment_size() as usize;
 
         if size > seg_size {
             debug!("item is oversized");
-            return Err(TtlBucketError::ItemOversized);
+            return Err(Error::ItemOversized);
         }
 
         loop {

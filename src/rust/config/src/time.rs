@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 // constants to define default values
-const DEFAULT_TIME_TYPE: TimeType = TimeType::Memcache;
+const DEFAULT_TIME_TYPE: TimeType = TimeType::Unix;
 
 // helper functions
 fn time_type() -> TimeType {

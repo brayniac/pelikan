@@ -16,7 +16,8 @@ use config::TimeType;
 use std::convert::TryInto;
 use std::time::SystemTime;
 
-use segcache::{SegCache, SegCacheError};
+use config::seg_cache::Eviction;
+use segcache::{Policy, SegCache, SegCacheError};
 
 use rustcommon_time::*;
 
@@ -75,7 +76,21 @@ impl Worker<CacheHasher> {
         let (session_sender, session_receiver) = sync_channel(128);
         let (message_sender, message_receiver) = sync_channel(128);
 
-        let data = SegCache::new(24, CacheHasher::default(), 4096, 1024 * 1024);
+        let eviction = match config.seg_cache().eviction() {
+            Eviction::None => Policy::None,
+            Eviction::Random => Policy::Random,
+            Eviction::Fifo => Policy::Fifo,
+            Eviction::Cte => Policy::Cte,
+            Eviction::Util => Policy::Util,
+        };
+
+        let data = SegCache::builder()
+            .power(config.seg_cache().hash_power())
+            .segments(config.seg_cache().segments())
+            .seg_size(config.seg_cache().seg_size())
+            .eviction(eviction)
+            .hasher(CacheHasher::default())
+            .build();
 
         Ok(Self {
             config,
@@ -305,7 +320,7 @@ impl Worker<CacheHasher> {
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
                     .as_secs() as u32;
-                request.expiry() - epoch
+                request.expiry().wrapping_sub(epoch)
             }
             TimeType::Delta => request.expiry(),
             TimeType::Memcache => {
@@ -318,7 +333,7 @@ impl Worker<CacheHasher> {
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_secs() as u32;
-                    request.expiry() - epoch
+                    request.expiry().wrapping_sub(epoch)
                 }
             }
         };
@@ -371,7 +386,7 @@ impl Worker<CacheHasher> {
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
                     .as_secs() as u32;
-                request.expiry() - epoch
+                request.expiry().wrapping_sub(epoch)
             }
             TimeType::Delta => request.expiry(),
             TimeType::Memcache => {
@@ -384,7 +399,7 @@ impl Worker<CacheHasher> {
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_secs() as u32;
-                    request.expiry() - epoch
+                    request.expiry().wrapping_sub(epoch)
                 }
             }
         };
@@ -443,7 +458,7 @@ impl Worker<CacheHasher> {
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
                     .as_secs() as u32;
-                request.expiry() - epoch
+                request.expiry().wrapping_sub(epoch)
             }
             TimeType::Delta => request.expiry(),
             TimeType::Memcache => {
@@ -456,7 +471,7 @@ impl Worker<CacheHasher> {
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_secs() as u32;
-                    request.expiry() - epoch
+                    request.expiry().wrapping_sub(epoch)
                 }
             }
         };
@@ -502,7 +517,7 @@ impl Worker<CacheHasher> {
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap()
                     .as_secs() as u32;
-                request.expiry() - epoch
+                request.expiry().wrapping_sub(epoch)
             }
             TimeType::Delta => request.expiry(),
             TimeType::Memcache => {
@@ -515,7 +530,7 @@ impl Worker<CacheHasher> {
                         .duration_since(SystemTime::UNIX_EPOCH)
                         .unwrap()
                         .as_secs() as u32;
-                    request.expiry() - epoch
+                    request.expiry().wrapping_sub(epoch)
                 }
             }
         };

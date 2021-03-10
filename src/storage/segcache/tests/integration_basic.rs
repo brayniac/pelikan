@@ -17,7 +17,7 @@ fn integration_basic() {
     let ttl = CoarseDuration::ZERO;
     let segments = 2;
     let seg_size = 256;
-    let mut cache = SegCache::new(16, build_hasher(), segments, seg_size);
+    let mut cache = SegCache::builder().seg_size(seg_size).segments(segments).power(16).hasher(build_hasher()).build();
 
     println!("filling seg 0");
     let _ = cache.insert(

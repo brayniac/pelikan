@@ -18,12 +18,12 @@ where
 {
     pub fn with_hasher(power: u8, hash_builder: S) -> HashTable<S> {
         let slots = 1_u64 << power;
-        let buckets = slots as usize / 8;
-        let mask = buckets as u64 - 1;
+        let buckets = slots / 8;
+        let mask = buckets - 1;
 
         let mut data = Vec::with_capacity(0);
-        data.reserve_exact(buckets);
-        data.resize(buckets, HashBucket::new());
+        data.reserve_exact(buckets as usize);
+        data.resize(buckets as usize, HashBucket::new());
         debug!(
             "hashtable has: {} slots across {} buckets",
             slots,
@@ -301,7 +301,7 @@ where
         deleted
     }
 
-    pub(crate) fn evict(&mut self, key: &[u8], offset: i32, segment: &mut Segment) -> bool {
+    pub fn evict(&mut self, key: &[u8], offset: i32, segment: &mut Segment) -> bool {
         let hash = self.hash(key);
         let tag = tag_from_hash(hash);
 

@@ -48,6 +48,8 @@ pub struct TwemcacheConfig {
     time: TimeConfig,
     #[serde(default)]
     tls: TlsConfig,
+    #[serde(default)]
+    seg_cache: SegCacheConfig,
 
     // ccommon
     #[serde(default)]
@@ -125,6 +127,10 @@ impl TwemcacheConfig {
     pub fn tls(&self) -> &TlsConfig {
         &self.tls
     }
+
+    pub fn seg_cache(&self) -> &SegCacheConfig {
+        &self.seg_cache
+    }
 }
 
 // trait implementations
@@ -139,6 +145,7 @@ impl Default for TwemcacheConfig {
             server: Default::default(),
             worker: Default::default(),
             time: Default::default(),
+            seg_cache: Default::default(),
 
             buf: Default::default(),
             debug: Default::default(),

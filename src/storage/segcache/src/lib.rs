@@ -22,6 +22,7 @@ mod segments;
 mod ttl_buckets;
 
 pub use item::Item;
+pub use segments::Policy;
 
 pub(crate) use common::*;
 pub(crate) use hashtable::*;
@@ -29,7 +30,7 @@ pub(crate) use item::*;
 pub(crate) use metrics::Stat;
 pub(crate) use crate::rand::*;
 pub(crate) use segments::*;
-pub(crate) use ttl_buckets::*;
+pub(crate) use ttl_buckets::TtlBuckets;
 
 pub struct SegCache<S: std::hash::BuildHasher> {
     hashtable: HashTable<S>,
@@ -47,16 +48,64 @@ pub enum SegCacheError {
     NotFound,
 }
 
+pub struct Builder<S: std::hash::BuildHasher> {
+    hasher: Option<S>,
+    power: u8,
+    segments_builder: SegmentsBuilder,
+}
+
+impl<S: std::hash::BuildHasher> Default for Builder<S> {
+    fn default() -> Self {
+        Self {
+            hasher: None,
+            power: 16,
+            segments_builder: SegmentsBuilder::default(),
+        }
+    }
+}
+
+impl<S: std::hash::BuildHasher + Default> Builder<S> {
+    pub fn hasher(mut self, hasher: S) -> Self {
+        self.hasher = Some(hasher);
+        self
+    }
+
+    pub fn power(mut self, power: u8) -> Self {
+        assert!(power > 0, "power must be greater than zero");
+        self.power = power;
+        self
+    }
+
+    pub fn segments(mut self, count: i32) -> Self {
+        self.segments_builder = self.segments_builder.segments(count);
+        self
+    }
+
+    pub fn seg_size(mut self, size: i32) -> Self {
+        self.segments_builder = self.segments_builder.seg_size(size);
+        self
+    }
+
+    pub fn eviction(mut self, policy: Policy) -> Self {
+        self.segments_builder = self.segments_builder.eviction_policy(policy);
+        self
+    }
+
+    pub fn build(self) -> SegCache<S> {
+        let hasher = self.hasher.unwrap_or_default();
+        SegCache::new(self.power, hasher, self.segments_builder)
+    }
+}
+
 impl<S: std::hash::BuildHasher> SegCache<S> {
-    pub fn new(power: u8, hash_builder: S, segments: i32, seg_size: i32) -> Self {
+    pub fn builder() -> Builder<S> {
+        Builder::default()
+    }
+
+    fn new(power: u8, hash_builder: S, segments_builder: SegmentsBuilder) -> Self {
         let hashtable = HashTable::with_hasher(power, hash_builder);
 
-        let evict_policy = Policy::Random;
-        let segments = Segments::builder()
-            .seg_size(seg_size)
-            .segments(segments)
-            .eviction_policy(evict_policy)
-            .build();
+        let segments = segments_builder.build();
         let ttl_buckets = TtlBuckets::default();
         Self {
             hashtable,
@@ -86,8 +135,8 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
                 reserved_item.define(key, value, optional);
                 Ok(reserved_item)
             }
-            Err(TtlBucketError::ItemOversized) => Err(SegCacheError::ItemOversized),
-            Err(TtlBucketError::NoFreeSegments) => Err(SegCacheError::NoFreeSegments),
+            Err(ttl_buckets::Error::ItemOversized) => Err(SegCacheError::ItemOversized),
+            Err(ttl_buckets::Error::NoFreeSegments) => Err(SegCacheError::NoFreeSegments),
         }
     }
 
@@ -249,19 +298,19 @@ mod tests {
         assert_eq!(std::mem::size_of::<HashBucket>(), 64);
         assert_eq!(std::mem::size_of::<HashTable<ahash::RandomState>>(), 64);
 
-        assert_eq!(std::mem::size_of::<TtlBucket>(), 64);
+        assert_eq!(std::mem::size_of::<crate::ttl_buckets::TtlBucket>(), 64);
         assert_eq!(std::mem::size_of::<TtlBuckets>(), 16);
     }
 
     #[test]
     fn init() {
-        let mut cache = SegCache::new(16, build_hasher(), 64, 4 * 1024);
+        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
         assert_eq!(cache.items(), 0);
     }
 
     #[test]
     fn get_free_seg() {
-        let mut cache = SegCache::new(16, build_hasher(), 64, 4 * 1024);
+        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         let seg = cache.get_new_segment();
@@ -272,7 +321,7 @@ mod tests {
     #[test]
     fn get() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::new(16, build_hasher(), 64, 4 * 1024);
+        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         assert!(cache.get(b"coffee").is_none());
@@ -288,7 +337,7 @@ mod tests {
     #[test]
     fn overwrite() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::new(16, build_hasher(), 64, 4 * 1024);
+        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         assert!(cache.get(b"drink").is_none());
@@ -327,7 +376,7 @@ mod tests {
     #[test]
     fn delete() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::new(16, build_hasher(), 64, 4 * 1024);
+        let mut cache = SegCache::builder().seg_size(4096).hasher(build_hasher()).build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
         assert!(cache.get(b"drink").is_none());
@@ -349,7 +398,7 @@ mod tests {
     #[test]
     fn collisions_2() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::new(3, build_hasher(), 2, 64);
+        let mut cache = SegCache::builder().seg_size(64).segments(2).power(3).hasher(build_hasher()).build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 2);
 
@@ -368,7 +417,7 @@ mod tests {
     #[test]
     fn collisions() {
         let ttl = CoarseDuration::ZERO;
-        let mut cache = SegCache::new(3, build_hasher(), 64, 4 * 1024);
+        let mut cache = SegCache::builder().seg_size(4096).power(3).hasher(build_hasher()).build();
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), 64);
 
@@ -400,7 +449,7 @@ mod tests {
         let key_size = 1;
         let value_size = 512;
 
-        let mut cache = SegCache::new(16, build_hasher(), segments as i32, seg_size);
+        let mut cache = SegCache::builder().seg_size(seg_size).segments(segments as i32).power(16).hasher(build_hasher()).build();
 
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), segments);
@@ -433,7 +482,7 @@ mod tests {
         let key_size = 2;
         let value_size = 1;
 
-        let mut cache = SegCache::new(16, build_hasher(), segments as i32, seg_size);
+        let mut cache = SegCache::builder().seg_size(seg_size).segments(segments as i32).power(16).hasher(build_hasher()).build();
 
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), segments);
@@ -454,9 +503,11 @@ mod tests {
             };
         }
 
-        // TODO(bmartin): can't check this until we do chaining, there are too
-        // many collisions for this config.
+        #[cfg(not(feature = "magic"))]
         assert_eq!(inserts, 9999721);
+
+        #[cfg(feature = "magic")]
+        assert_eq!(inserts, 9999702);
     }
 
     #[test]
@@ -464,7 +515,7 @@ mod tests {
         let segments = 64;
         let seg_size = 2 * 1024;
 
-        let mut cache = SegCache::new(16, build_hasher(), segments as i32, seg_size);
+        let mut cache = SegCache::builder().seg_size(seg_size).segments(segments as i32).power(16).hasher(build_hasher()).build();
 
         assert_eq!(cache.items(), 0);
         assert_eq!(cache.segments.free(), segments);
