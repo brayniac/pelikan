@@ -1,7 +1,7 @@
 daemonize = false
 
-# NOTE: not currently implemented
 [admin]
+port = "9999"
 
 [server]
 # interfaces listening on
@@ -19,7 +19,16 @@ timeout = 100
 # epoll max events returned
 nevent = 1024
 
-# NOTE: not currently implemented
+[seg_cache]
+# hash power
+hash_power = 22
+# size of each segment in bytes
+seg_size = 1048576
+# number of segments
+segments = 4096
+# eviction policy
+eviction = "Random"
+
 [time]
 time_type = "Memcache"
 

@@ -281,16 +281,11 @@ mod tests {
 
     #[test]
     fn sizes() {
-        #[cfg(all(feature = "magic", feature = "precise_freq"))]
-        assert_eq!(ITEM_HDR_SIZE, 13);
 
-        #[cfg(all(not(feature = "magic"), feature = "precise_freq"))]
+        #[cfg(feature = "magic")]
         assert_eq!(ITEM_HDR_SIZE, 9);
 
-        #[cfg(all(feature = "magic", not(feature = "precise_freq")))]
-        assert_eq!(ITEM_HDR_SIZE, 9);
-
-        #[cfg(all(not(feature = "magic"), not(feature = "precise_freq")))]
+        #[cfg(not(feature = "magic"))]
         assert_eq!(ITEM_HDR_SIZE, 5);
 
         assert_eq!(std::mem::size_of::<Segments>(), 64);
