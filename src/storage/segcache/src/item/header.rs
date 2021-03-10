@@ -1,10 +1,13 @@
+// Copyright 2021 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
+use crate::item::*;
+
 // NOTE: repr(packed) is necessary to get the smallest representation. The
 // struct is always taken from an aligned pointer cast. This can potentially
 // result in UB when fields are referenced. Fields that require access by
 // reference must be strategically placed to ensure alignment and avoid UB.
-
-use crate::item::*;
-use crate::ITEM_MAGIC;
 
 #[repr(C)]
 #[repr(packed)]
@@ -44,56 +47,73 @@ impl std::fmt::Debug for ItemHeader {
 }
 
 impl ItemHeader {
-    // return the magic
+    /// Get the magic bytes from the header
     #[cfg(feature = "magic")]
+    #[inline]
     pub fn magic(&self) -> u32 {
         self.magic
     }
 
+    /// Write the magic bytes into the header
     #[cfg(feature = "magic")]
+    #[inline]
     pub fn set_magic(&mut self) {
         self.magic = ITEM_MAGIC;
     }
 
+    /// Check the magic bytes
+    #[inline]
     pub fn check_magic(&self) {
         #[cfg(feature = "magic")]
         assert_eq!(self.magic(), ITEM_MAGIC);
     }
 
-    // key length is the low byte
+    /// Get the item's key length
+    #[inline]
     pub fn klen(&self) -> u8 {
-        (self.len & KLEN_MASK) as u8
+        self.len as u8
     }
 
-    // value length is all but the low byte
+    /// Get the item's value length
+    #[inline]
     pub fn vlen(&self) -> u32 {
         self.len >> VLEN_SHIFT
     }
 
+    /// get the optional data length
+    #[inline]
     pub fn olen(&self) -> u8 {
         self.flags & OLEN_MASK
     }
 
+    /// Is the item a numeric value?
+    #[inline]
     pub fn is_num(&self) -> bool {
         self.flags & NUM_MASK != 0
     }
 
+    /// Is the item deleted?
+    #[inline]
     pub fn is_deleted(&self) -> bool {
         self.flags & DEL_MASK != 0
     }
 
-    // set the key length by changing just the low byte
+    /// Set the key length by changing just the low byte
+    #[inline]
     pub fn set_klen(&mut self, len: u8) {
         self.len = (self.len & !KLEN_MASK) | (len as u32);
     }
 
-    // set the value length by changing just the upper bytes
+    /// Set the value length by changing just the upper bytes
     // TODO(bmartin): where should we do error handling for out-of-range?
+    #[inline]
     pub fn set_vlen(&mut self, len: u32) {
         debug_assert!(len <= (u32::MAX >> VLEN_SHIFT));
         self.len = (self.len & !VLEN_MASK) | (len << VLEN_SHIFT);
     }
 
+    /// Mark the item as deleted
+    #[inline]
     pub fn set_deleted(&mut self, deleted: bool) {
         if deleted {
             self.flags |= DEL_MASK
@@ -102,6 +122,8 @@ impl ItemHeader {
         }
     }
 
+    /// Mark the item as numeric
+    #[inline]
     pub fn set_num(&mut self, num: bool) {
         if num {
             self.flags |= NUM_MASK
@@ -110,6 +132,8 @@ impl ItemHeader {
         }
     }
 
+    /// Set the optional length
+    #[inline]
     pub fn set_olen(&mut self, len: u8) {
         debug_assert!(len <= OLEN_MASK);
         self.flags = (self.flags & !OLEN_MASK) | len;

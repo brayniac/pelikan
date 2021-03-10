@@ -1,3 +1,7 @@
+// Copyright 2021 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 use crate::*;
 
 const N_ITEM_SLOT: usize = 8;
@@ -324,6 +328,57 @@ where
         hasher.finish()
     }
 }
+
+#[inline]
+pub const fn tag_from_hash(hash: u64) -> u64 {
+    (hash & TAG_MASK) | 0x0010000000000000
+}
+
+#[inline]
+pub const fn get_offset(item_info: u64) -> u64 {
+    (item_info & OFFSET_MASK) << 3
+}
+
+#[inline]
+pub const fn get_seg_id(item_info: u64) -> i32 {
+    ((item_info & SEG_ID_MASK) >> 20) as i32
+}
+
+#[inline]
+pub const fn get_freq(item_info: u64) -> u64 {
+    (item_info & FREQ_MASK) >> 44
+}
+
+#[inline]
+pub const fn get_cas(bucket_info: u64) -> u32 {
+    (bucket_info & CAS_MASK) as u32
+}
+
+#[inline]
+pub const fn get_ts(bucket_info: u64) -> u64 {
+    bucket_info & TS_MASK
+}
+
+#[inline]
+pub const fn get_tag(item_info: u64) -> u64 {
+    item_info & TAG_MASK
+}
+
+#[inline]
+pub const fn clear_freq(item_info: u64) -> u64 {
+    item_info & !FREQ_MASK
+}
+
+#[inline]
+pub const fn chain_len(bucket_info: u64) -> u64 {
+    (bucket_info & BUCKET_CHAIN_LEN_MASK) >> 20
+}
+
+#[inline]
+pub const fn build_item_info(tag: u64, seg_id: u64, offset: u64) -> u64 {
+    tag | (seg_id << 20) | (offset >> 3)
+}
+
 
 #[derive(Copy, Clone)]
 pub struct HashBucket {

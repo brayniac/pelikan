@@ -1,3 +1,7 @@
+// Copyright 2021 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 pub const N_BUCKET_PER_STEP_N_BIT: usize = 8;
 pub const N_BUCKET_PER_STEP: usize = 1 << N_BUCKET_PER_STEP_N_BIT;
 

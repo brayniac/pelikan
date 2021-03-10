@@ -1,5 +1,4 @@
 use crate::item::*;
-use crate::ITEM_HDR_SIZE;
 
 /// `RawItem` is the raw memory representation of an item.
 #[repr(C)]

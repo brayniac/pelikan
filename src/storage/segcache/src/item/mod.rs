@@ -10,8 +10,15 @@ pub use header::ItemHeader;
 pub use raw::RawItem;
 pub use reserved::ReservedItem;
 
+// item constants
+pub const ITEM_HDR_SIZE: usize = std::mem::size_of::<crate::item::ItemHeader>();
+pub const ITEM_MAGIC: u32 = 0xDECAFBAD;
+pub const ITEM_MAGIC_SIZE: usize = std::mem::size_of::<u32>();
+
+// masks and shifts
 const KLEN_MASK: u32 = 0x000000FF;
 const VLEN_MASK: u32 = 0xFFFFFF00;
+
 const VLEN_SHIFT: u32 = 8;
 
 const OLEN_MASK: u8 = 0b00111111;

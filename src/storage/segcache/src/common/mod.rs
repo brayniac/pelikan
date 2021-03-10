@@ -1,3 +1,7 @@
+// Copyright 2021 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 // item info masks
 pub const TAG_MASK: u64 = 0xFFF0_0000_0000_0000;
 pub const FREQ_MASK: u64 = 0x000F_F000_0000_0000;
@@ -18,11 +22,6 @@ pub const FREQ_BIT_SHIFT: u64 = 44;
 
 // only use the lower 16-bits of the timestamp
 pub const PROC_TS_MASK: u64 = 0x0000_0000_0000_FFFF;
-
-// item constants
-pub const ITEM_HDR_SIZE: usize = std::mem::size_of::<crate::item::ItemHeader>();
-pub const ITEM_MAGIC: u32 = 0xDECAFBAD;
-pub const ITEM_MAGIC_SIZE: usize = std::mem::size_of::<u32>();
 
 // segment constants
 pub const SEG_MAGIC: u64 = 0xBADC0FFEEBADCAFE;
@@ -57,54 +56,4 @@ impl ThinOption for i32 {
             None
         }
     }
-}
-
-#[inline]
-pub const fn tag_from_hash(hash: u64) -> u64 {
-    (hash & TAG_MASK) | 0x0010000000000000
-}
-
-#[inline]
-pub const fn get_offset(item_info: u64) -> u64 {
-    (item_info & OFFSET_MASK) << 3
-}
-
-#[inline]
-pub const fn get_seg_id(item_info: u64) -> i32 {
-    ((item_info & SEG_ID_MASK) >> 20) as i32
-}
-
-#[inline]
-pub const fn get_freq(item_info: u64) -> u64 {
-    (item_info & FREQ_MASK) >> 44
-}
-
-#[inline]
-pub const fn get_cas(bucket_info: u64) -> u32 {
-    (bucket_info & CAS_MASK) as u32
-}
-
-#[inline]
-pub const fn get_ts(bucket_info: u64) -> u64 {
-    bucket_info & TS_MASK
-}
-
-#[inline]
-pub const fn get_tag(item_info: u64) -> u64 {
-    item_info & TAG_MASK
-}
-
-#[inline]
-pub const fn clear_freq(item_info: u64) -> u64 {
-    item_info & !FREQ_MASK
-}
-
-#[inline]
-pub const fn chain_len(bucket_info: u64) -> u64 {
-    (bucket_info & BUCKET_CHAIN_LEN_MASK) >> 20
-}
-
-#[inline]
-pub const fn build_item_info(tag: u64, seg_id: u64, offset: u64) -> u64 {
-    tag | (seg_id << 20) | (offset >> 3)
 }
