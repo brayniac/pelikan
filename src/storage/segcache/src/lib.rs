@@ -282,7 +282,7 @@ impl<S: std::hash::BuildHasher> SegCache<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::ITEM_HDR_SIZE;
+    use crate::item::ITEM_HDR_SIZE;
     use ahash::RandomState;
 
     // Use ahash for testing with fixed seeds. Reproducible testing is important
