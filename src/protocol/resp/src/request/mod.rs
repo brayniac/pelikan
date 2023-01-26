@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use logger::Klog;
 use crate::message::*;
 use crate::*;
 use protocol_common::BufMut;
@@ -36,7 +37,7 @@ pub use hset::*;
 pub use hvals::*;
 pub use set::*;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RequestParser {
     message_parser: MessageParser,
 }
@@ -193,6 +194,13 @@ pub enum Request {
     HashSet(HashSetRequest),
     HashValues(HashValuesRequest),
     Set(SetRequest),
+}
+
+impl Klog for Request {
+    type Response = Response;
+
+    fn klog(&self, _response: &Self::Response) {
+    }
 }
 
 impl From<BAddRequest> for Request {

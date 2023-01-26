@@ -768,6 +768,7 @@ dependencies = [
  "protocol-common",
  "protocol-memcache",
  "protocol-ping",
+ "protocol-resp",
  "seg",
 ]
 
@@ -1948,6 +1949,7 @@ name = "protocol-resp"
 version = "0.3.1"
 dependencies = [
  "common",
+ "logger",
  "metriken",
  "nom 5.1.2",
  "protocol-common",
@@ -2058,6 +2060,22 @@ dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
  "num_cpus",
+]
+
+[[package]]
+name = "rds"
+version = "0.3.1"
+dependencies = [
+ "backtrace",
+ "clap 2.34.0",
+ "common",
+ "config",
+ "criterion 0.3.6",
+ "entrystore",
+ "logger",
+ "metriken",
+ "protocol-resp",
+ "server",
 ]
 
 [[package]]

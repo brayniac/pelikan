@@ -5,12 +5,14 @@
 mod message;
 mod request;
 mod response;
+mod storage;
 mod util;
 
 pub(crate) use util::*;
 
 pub use request::*;
 pub use response::*;
+pub use storage::*;
 
 use metriken::*;
 
