@@ -37,7 +37,6 @@ impl Execute<Request, Response> for Seg {
 
 impl Storage for Seg {
     fn get(&mut self, get: &GetRequest) -> Response {
-        // let mut values = Vec::with_capacity(get.keys().len());
         if let Some(item) = self.data.get(get.key()) {
             match item.value() {
                 seg::Value::Bytes(b) => {
