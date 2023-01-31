@@ -36,6 +36,10 @@ pub use hmget::*;
 pub use hset::*;
 pub use hvals::*;
 pub use set::*;
+// response codes for klog
+const MISS: u8 = 0;
+const HIT: u8 = 4;
+const STORED: u8 = 5;
 
 #[derive(Default, Clone)]
 pub struct RequestParser {
@@ -199,7 +203,12 @@ pub enum Request {
 impl Klog for Request {
     type Response = Response;
 
-    fn klog(&self, _response: &Self::Response) {
+    fn klog(&self, response: &Self::Response) {
+        match self {
+            Request::Get(r) => r.klog(response),
+            // Request::Set(r) => r.klog(response),
+            _ => ()
+        }
     }
 }
 
