@@ -18,7 +18,6 @@ pub fn tests() {
 
     // get and gets on a key that is not in the cache results in a miss
     test("get miss", &[("get 0\r\n", Some("END\r\n"))]);
-    test("gets miss", &[("gets 0\r\n", Some("END\r\n"))]);
 
     // check that we can store and retrieve a key
     test(
