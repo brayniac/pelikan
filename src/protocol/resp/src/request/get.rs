@@ -83,12 +83,12 @@ impl Klog for GetRequest {
 
     fn klog(&self, response: &Self::Response) {
         let code = match response {
-            Message::BulkString(s) if response == Response::null() => MISS,
+            Message::BulkString(s) if *response == Response::null() => MISS,
             Message::BulkString(s) => HIT,
             _ => MISS,
         };
 
-        klog!("\"get {}\" {}", string_key(inner), code);
+        klog!("\"get {}\" {}", string_key(self.key()), code);
     }
 }
 #[cfg(test)]

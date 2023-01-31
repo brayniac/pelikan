@@ -209,7 +209,7 @@ impl Klog for Request {
     fn klog(&self, response: &Self::Response) {
         match self {
             Request::Get(r) => r.klog(response),
-            // Request::Set(r) => r.klog(response),
+            Request::Set(r) => r.klog(response),
             _ => (),
         }
     }
