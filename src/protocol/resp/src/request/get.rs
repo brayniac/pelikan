@@ -83,8 +83,8 @@ impl Klog for GetRequest {
 
     fn klog(&self, response: &Self::Response) {
         let code = match response {
-            Message::BulkString(s) if *response == Response::null() => MISS,
-            Message::BulkString(s) => HIT,
+            Message::BulkString(_) if *response == Response::null() => MISS,
+            Message::BulkString(_) => HIT,
             _ => MISS,
         };
 

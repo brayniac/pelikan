@@ -236,7 +236,7 @@ impl Klog for SetRequest {
 
     fn klog(&self, response: &Self::Response) {
         let code = match response {
-            Message::SimpleString(s) => STORED,
+            Message::SimpleString(_) => STORED,
             _ => NOT_STORED,
         };
 
