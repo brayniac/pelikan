@@ -101,59 +101,6 @@ impl Storage for Seg {
         // Response::null()
     }
 
-    // fn set(&mut self, set: &Set) -> Response {
-    //     let ttl = set.ttl().get().unwrap_or(0);
-
-    //     if ttl < 0 {
-    //         // immediate expire maps to a delete
-    //         self.data.delete(set.key());
-    //         Response::stored(set.noreply())
-    //     } else if let Ok(s) = std::str::from_utf8(set.value()) {
-    //         if let Ok(v) = s.parse::<u64>() {
-    //             if self
-    //                 .data
-    //                 .insert(
-    //                     set.key(),
-    //                     v,
-    //                     Some(&set.flags().to_be_bytes()),
-    //                     Duration::from_secs(ttl as u64),
-    //                 )
-    //                 .is_ok()
-    //             {
-    //                 Response::stored(set.noreply())
-    //             } else {
-    //                 Response::server_error("")
-    //             }
-    //         } else if self
-    //             .data
-    //             .insert(
-    //                 set.key(),
-    //                 set.value(),
-    //                 Some(&set.flags().to_be_bytes()),
-    //                 Duration::from_secs(ttl as u64),
-    //             )
-    //             .is_ok()
-    //         {
-    //             Response::stored(set.noreply())
-    //         } else {
-    //             Response::server_error("")
-    //         }
-    //     } else if self
-    //         .data
-    //         .insert(
-    //             set.key(),
-    //             set.value(),
-    //             Some(&set.flags().to_be_bytes()),
-    //             Duration::from_secs(ttl as u64),
-    //         )
-    //         .is_ok()
-    //     {
-    //         Response::stored(set.noreply())
-    //     } else {
-    //         Response::server_error("")
-    //     }
-    // }
-
     // fn add(&mut self, add: &Add) -> Response {
     //     if self.data.get_no_freq_incr(add.key()).is_some() {
     //         return Response::not_stored(add.noreply());
