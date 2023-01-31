@@ -78,9 +78,8 @@ impl Storage for Seg {
     // }
 
     fn set(&mut self, set: &SetRequest) -> Response {
-        let ttl = match set.expire_time() {
-            None => 0,
-            Some(ExpireTime::Seconds(n)) => n,
+        let ttl = match set.expire_time().unwrap_or(ExpireTime::default()) {
+            ExpireTime::Seconds(n) => n,
             _ => 0,
         };
 

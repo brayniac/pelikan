@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use std::borrow::Cow;
+use std::fmt::{Display, Formatter};
 use logger::Klog;
 use crate::message::*;
 use crate::*;
@@ -40,6 +42,7 @@ pub use set::*;
 const MISS: u8 = 0;
 const HIT: u8 = 4;
 const STORED: u8 = 5;
+const NOT_STORED: u8 = 9;
 
 #[derive(Default, Clone)]
 pub struct RequestParser {
