@@ -17,16 +17,16 @@ pub fn tests() {
     println!();
 
     // get and gets on a key that is not in the cache results in a miss
-    test("get miss", &[("get 0\r\n", Some("END\r\n"))]);
+    test("get miss", &[("get 0\r\n", Some(RESP_NIL))]);
 
     // check that we can store and retrieve a key
     test(
         "set and get",
         &[
             // store the key
-            ("set 1 0 0 1\r\n1\r\n", Some("STORED\r\n")),
+            ("set foo bar\r\n", Some(RESP_OK)),
             // retrieve the key
-            ("get 1\r\n", Some("VALUE 1 0 1\r\n1\r\nEND\r\n")),
+            ("get foo\r\n", Some(&bulk_string("bar"))),
         ],
     );
 
@@ -348,4 +348,11 @@ fn admin_test(name: &str, data: &[(&str, Option<&str>)]) {
         }
     }
     info!("status: passed\n");
+}
+const RESP_NIL: &str = "$-1\r\n";
+const RESP_OK: &str = "+OK\r\n";
+
+fn bulk_string(str: &str) -> String {
+    let length = str.as_bytes().len();
+    format!( "${}\r\n{}\r\n", length, str)
 }
