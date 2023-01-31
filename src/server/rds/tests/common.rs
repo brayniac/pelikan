@@ -3,7 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 //! This module provides a set of integration tests and a function to run the
-//! tests against a Segcache instance. This allows us to run the same test suite
+//! tests against an Rds instance. This allows us to run the same test suite
 //! for multiple server configurations.
 
 use logger::*;
