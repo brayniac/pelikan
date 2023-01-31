@@ -2,14 +2,14 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
-use logger::Klog;
 use crate::message::*;
 use crate::*;
+use logger::Klog;
 use protocol_common::BufMut;
 use protocol_common::Parse;
 use protocol_common::ParseOk;
+use std::borrow::Cow;
+use std::fmt::{Display, Formatter};
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 
@@ -210,7 +210,7 @@ impl Klog for Request {
         match self {
             Request::Get(r) => r.klog(response),
             // Request::Set(r) => r.klog(response),
-            _ => ()
+            _ => (),
         }
     }
 }
@@ -345,7 +345,7 @@ impl Display for ExpireTime {
             ExpireTime::Milliseconds(ms) => write!(f, "{}ms", ms),
             ExpireTime::UnixSeconds(s) => write!(f, "{}unix_secs", s),
             ExpireTime::UnixMilliseconds(ms) => write!(f, "{}unix_ms", ms),
-            ExpireTime::KeepTtl => write!(f, "keep_ttl")
+            ExpireTime::KeepTtl => write!(f, "keep_ttl"),
         }
     }
 }

@@ -247,7 +247,8 @@ fn test(name: &str, data: &[(&str, Option<&str>)]) {
                 error!("expected (bytes): {:?}", response.as_bytes());
                 error!("received (bytes): {:?}", &buf[0..response.len()]);
                 error!("expected (UTF-8): {:?}", response);
-                let resp = std::str::from_utf8(&buf[0..response.len()]).expect("received invalid UTF-8 from Rds");
+                let resp = std::str::from_utf8(&buf[0..response.len()])
+                    .expect("received invalid UTF-8 from Rds");
                 error!("received (UTF-8): {}", resp);
                 std::thread::sleep(Duration::from_millis(500));
                 panic!("status: failed\n");
@@ -359,5 +360,5 @@ const RESP_OK: &str = "+OK\r\n";
 
 fn bulk_string(str: &str) -> String {
     let length = str.as_bytes().len();
-    format!( "${}\r\n{}\r\n", length, str)
+    format!("${}\r\n{}\r\n", length, str)
 }

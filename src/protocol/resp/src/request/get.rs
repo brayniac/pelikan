@@ -3,9 +3,9 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use super::*;
+use logger::klog;
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
-use logger::klog;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct GetRequest {
@@ -85,14 +85,10 @@ impl Klog for GetRequest {
         let code = match response {
             Message::BulkString(s) if response == Response::null() => MISS,
             Message::BulkString(s) => HIT,
-            _ => MISS
+            _ => MISS,
         };
 
-        klog!(
-            "\"get {}\" {}",
-            string_key(inner),
-            code
-        );
+        klog!("\"get {}\" {}", string_key(inner), code);
     }
 }
 #[cfg(test)]

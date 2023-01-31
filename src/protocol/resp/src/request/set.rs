@@ -2,11 +2,11 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::fmt::{Display, Formatter};
 use super::*;
+use logger::klog;
+use std::fmt::{Display, Formatter};
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
-use logger::klog;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum SetMode {
@@ -19,9 +19,9 @@ impl Display for SetMode {
         let string = match self {
             SetMode::Add => "add",
             SetMode::Replace => "replace",
-            SetMode::Set => "set"
+            SetMode::Set => "set",
         };
-        write!(f, "{}", string )
+        write!(f, "{}", string)
     }
 }
 
@@ -241,12 +241,12 @@ impl Klog for SetRequest {
         };
 
         klog!(
-                    "\"set {} {} {} {}\" {}",
-                    string_key(self.key()),
-                    self.mode(),
-                    self.expire_time().unwrap_or(ExpireTime::default()),
-                    self.value().len(),
-                    code
+            "\"set {} {} {} {}\" {}",
+            string_key(self.key()),
+            self.mode(),
+            self.expire_time().unwrap_or(ExpireTime::default()),
+            self.value().len(),
+            code
         );
     }
 }
