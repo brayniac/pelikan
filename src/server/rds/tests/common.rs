@@ -242,8 +242,13 @@ fn test(name: &str, data: &[(&str, Option<&str>)]) {
                 std::thread::sleep(Duration::from_millis(500));
                 panic!("error reading response");
             } else if response.as_bytes() != &buf[0..response.len()] {
-                error!("expected: {:?}", response.as_bytes());
-                error!("received: {:?}", &buf[0..response.len()]);
+                error!("sent (UTF-8): {:?}", request);
+                error!("sent (bytes): {:?}", request.as_bytes());
+                error!("expected (bytes): {:?}", response.as_bytes());
+                error!("received (bytes): {:?}", &buf[0..response.len()]);
+                error!("expected (UTF-8): {:?}", response);
+                let resp = std::str::from_utf8(&buf[0..response.len()]).expect("received invalid UTF-8 from Rds");
+                error!("received (UTF-8): {}", resp);
                 std::thread::sleep(Duration::from_millis(500));
                 panic!("status: failed\n");
             } else {
