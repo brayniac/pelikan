@@ -330,3 +330,23 @@ pub enum ExpireTime {
     UnixMilliseconds(u64),
     KeepTtl,
 }
+impl Default for ExpireTime {
+    fn default() -> Self {
+        ExpireTime::Seconds(0)
+    }
+}
+impl Display for ExpireTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExpireTime::Seconds(s) => write!(f, "{}s", s),
+            ExpireTime::Milliseconds(ms) => write!(f, "{}ms", ms),
+            ExpireTime::UnixSeconds(s) => write!(f, "{}unix_secs", s),
+            ExpireTime::UnixMilliseconds(ms) => write!(f, "{}unix_ms", ms),
+            ExpireTime::KeepTtl => write!(f, "keep_ttl")
+        }
+    }
+}
+
+fn string_key(key: &[u8]) -> Cow<'_, str> {
+    String::from_utf8_lossy(key)
+}

@@ -26,6 +26,7 @@ impl From<Arc<[u8]>> for BulkString {
     }
 }
 
+
 impl TryInto<u64> for BulkString {
     type Error = Error;
 

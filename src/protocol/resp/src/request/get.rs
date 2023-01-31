@@ -5,6 +5,7 @@
 use super::*;
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
+use logger::klog;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct GetRequest {
@@ -77,6 +78,23 @@ impl Compose for GetRequest {
     }
 }
 
+impl Klog for GetRequest {
+    type Response = Response;
+
+    fn klog(&self, response: &Self::Response) {
+        let code = match response {
+            Message::BulkString(s) if response == Response::null() => MISS,
+            Message::BulkString(s) => HIT,
+            _ => MISS
+        };
+
+        klog!(
+            "\"get {}\" {}",
+            string_key(inner),
+            code
+        );
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
