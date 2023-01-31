@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-//! This module defines how `Seg` storage will be used to execute `Memcache`
+//! This module defines how `Seg` storage will be used to execute `Redis`
 //! storage commands.
 
 use super::*;
@@ -20,7 +20,6 @@ impl Execute<Request, Response> for Seg {
             _ => {
                 Response::error("not supported")
             }
-            // Request::Gets(gets) => self.gets(gets),
             // Request::Set(set) => self.set(set),
             // Request::Add(add) => self.add(add),
             // Request::Replace(replace) => self.replace(replace),
