@@ -2334,6 +2334,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "segcache_tokio"
+version = "0.1.0"
+dependencies = [
+ "backtrace",
+ "clap 4.1.4",
+ "clocksource",
+ "common",
+ "config",
+ "logger",
+ "metriken",
+ "parking_lot",
+ "protocol-memcache",
+ "seg",
+ "session",
+ "tokio",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"

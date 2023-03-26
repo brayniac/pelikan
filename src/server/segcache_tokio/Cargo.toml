@@ -1,0 +1,20 @@
+[package]
+name = "segcache_tokio"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+backtrace = "0.3.67"
+clap = { workspace = true }
+clocksource = "0.6.0"
+common = { path = "../../common" }
+config = { path = "../../config" }
+logger = { path = "../../logger" }
+protocol-memcache = { path = "../../protocol/memcache" }
+seg = { path = "../../storage/seg" }
+metriken = { workspace = true }
+tokio = { version = "1.21.2", features = ["full"] }
+session = { path = "../../session" }
+parking_lot = "0.12.1"
