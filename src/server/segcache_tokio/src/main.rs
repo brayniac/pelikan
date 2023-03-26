@@ -192,7 +192,7 @@ fn main() {
     // initialize async runtime for data plane tasks
     let data_plane = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(1)
+        .worker_threads(4)
         .build()
         .expect("failed to initialize tokio runtime for control plane");
 
