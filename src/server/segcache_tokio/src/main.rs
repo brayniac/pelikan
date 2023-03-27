@@ -233,6 +233,8 @@ async fn listener<T: ServerConfig>(config: Arc<T>, storage: Arc<Mutex<Seg>>) {
             let storage = storage.clone();
 
             tokio::spawn(worker(socket, storage));
+        } else {
+            tokio::time::sleep(Duration::from_millis(1)).await;
         }
     }
 }
