@@ -1,39 +1,39 @@
-
-use std::borrow::Borrow;
+use config::ServerConfig;
+use config::WorkerConfig;
 use protocol_memcache::Parse;
-use session::BufMut;
 use session::Buf;
+use session::BufMut;
+use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 #[macro_use]
 extern crate logger;
 
-use protocol_memcache::{Request, RequestParser};
-use session::Buffer;
-use tokio::net::TcpStream;
-use parking_lot::Mutex;
-use std::sync::Arc;
-use tokio::net::TcpListener;
-use tokio::io::AsyncWriteExt;
-use tokio::io::AsyncReadExt;
-use core::time::Duration;
-use tokio::time::sleep;
-use core::sync::atomic::{AtomicBool, Ordering};
-use tokio::runtime::Builder;
-use logger::configure_logging;
+use backtrace::Backtrace;
+use clap::Arg;
+use clap::Command;
+use config::seg::Eviction;
+use config::time::TimeType;
+use config::SegConfig;
 use config::SegcacheConfig;
+use core::sync::atomic::{AtomicBool, Ordering};
+use core::time::Duration;
+use logger::configure_logging;
 use metriken::Counter;
 use metriken::Gauge;
 use metriken::Heatmap;
-use clap::Arg;
-use clap::Command;
-use backtrace::Backtrace;
+use parking_lot::Mutex;
+use protocol_memcache::{Request, RequestParser};
+use seg::Policy;
 use seg::Seg;
-use config::SegConfig;
-use config::seg::Eviction;
-use seg::{Policy};
-use config::time::TimeType;
+use session::Buffer;
 use std::io::ErrorKind;
-
+use std::sync::Arc;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::net::TcpListener;
+use tokio::net::TcpStream;
+use tokio::runtime::Builder;
+use tokio::time::sleep;
 
 pub static PERCENTILES: &[(&str, f64)] = &[
     ("p25", 25.0),
@@ -135,13 +135,15 @@ fn main() {
         Default::default()
     };
 
+    let config = Arc::new(config);
+
     if matches.get_flag("print-config") {
         config.print();
         std::process::exit(0);
     }
 
     // initialize logging
-    let mut log = configure_logging(&config);
+    let mut log = configure_logging(&*config);
 
     // initialize async runtime for control plane tasks
     let control_plane = Builder::new_multi_thread()
@@ -178,35 +180,53 @@ fn main() {
     };
 
     // build the datastructure from the config
-    let storage = Seg::builder()
-        .hash_power(config.seg().hash_power())
-        .overflow_factor(config.seg().overflow_factor())
-        .heap_size(config.seg().heap_size())
-        .segment_size(config.seg().segment_size())
-        .eviction(eviction)
-        .datapool_path(config.seg().datapool_path())
-        .build().expect("failed to initilize storage");
+    let storage = Arc::new(Mutex::new(
+        Seg::builder()
+            .hash_power(config.seg().hash_power())
+            .overflow_factor(config.seg().overflow_factor())
+            .heap_size(config.seg().heap_size())
+            .segment_size(config.seg().segment_size())
+            .eviction(eviction)
+            .datapool_path(config.seg().datapool_path())
+            .build()
+            .expect("failed to initilize storage"),
+    ));
 
     // let storage = Storage::new(&config).expect("failed to initialize storage");
 
     // initialize async runtime for data plane tasks
     let data_plane = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(4)
+        .worker_threads(config.worker().threads())
         .build()
         .expect("failed to initialize tokio runtime for control plane");
 
+    // spawn expiration
+    data_plane.spawn(expiration(storage.clone()));
+
     // spawn listener
-    data_plane.spawn(listener(storage));
+    data_plane.spawn(listener(config.clone(), storage));
 
     while RUNNING.load(Ordering::Relaxed) {
         std::thread::sleep(Duration::from_millis(500));
     }
 }
 
-async fn listener(storage: Seg) {
-    let listener = TcpListener::bind("0.0.0.0:12321").await.expect("failed to bind service port");
-    let storage = Arc::new(Mutex::new(storage));
+async fn expiration(storage: Arc<Mutex<Seg>>) {
+    while RUNNING.load(Ordering::Relaxed) {
+        {
+            let mut storage = storage.lock();
+            storage.expire();
+        }
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+}
+
+async fn listener<T: ServerConfig>(config: Arc<T>, storage: Arc<Mutex<Seg>>) {
+    let listener = TcpListener::bind(config.server().socket_addr().expect("bad socket addr"))
+        .await
+        .expect("failed to bind service port");
 
     loop {
         if let Ok((socket, _)) = listener.accept().await {
@@ -214,8 +234,6 @@ async fn listener(storage: Seg) {
 
             tokio::spawn(worker(socket, storage));
         }
-
-        
     }
 }
 
@@ -238,7 +256,9 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
                     break 'session;
                 }
                 Ok(n) => {
-                    unsafe { read_buffer.advance_mut(n); }
+                    unsafe {
+                        read_buffer.advance_mut(n);
+                    }
                     match parser.parse(read_buffer.borrow()) {
                         Ok(request) => {
                             let consumed = request.consumed();
@@ -264,7 +284,6 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
 
         {
             let mut storage = storage.lock();
-            storage.expire();
 
             match request {
                 Request::Get(get) => {
@@ -278,17 +297,18 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
 
                             match item.value() {
                                 seg::Value::Bytes(b) => {
-                                    let header_fields = format!(" {} {}\r\n", flags, b.len()).into_bytes();
+                                    let header_fields =
+                                        format!(" {} {}\r\n", flags, b.len()).into_bytes();
                                     write_buffer.put_slice(&header_fields);
                                     write_buffer.put_slice(b);
                                 }
                                 seg::Value::U64(v) => {
                                     let value = format!("{v}").into_bytes();
 
-                                    let header_fields = format!(" {} {}\r\n", flags, value.len()).into_bytes();
+                                    let header_fields =
+                                        format!(" {} {}\r\n", flags, value.len()).into_bytes();
                                     write_buffer.put_slice(&header_fields);
                                     write_buffer.put_slice(&value);
-
                                 }
                             };
 
@@ -303,7 +323,15 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
                         // immediate expire maps to a delete
                         storage.delete(set.key());
                         write_buffer.put_slice(b"STORED\r\n");
-                    } else if storage.insert(set.key(), set.value(), Some(&set.flags().to_be_bytes()), Duration::from_secs(ttl as u64)).is_ok() {
+                    } else if storage
+                        .insert(
+                            set.key(),
+                            set.value(),
+                            Some(&set.flags().to_be_bytes()),
+                            Duration::from_secs(ttl as u64),
+                        )
+                        .is_ok()
+                    {
                         write_buffer.put_slice(b"STORED\r\n");
                     } else {
                         write_buffer.put_slice(b"SERVER_ERROR\r\n");
