@@ -21,8 +21,7 @@ use logger::configure_logging;
 use metriken::Counter;
 use metriken::Gauge;
 use metriken::Heatmap;
-// use parking_lot::Mutex;
-use tokio::sync::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 use protocol_memcache::{Request, RequestParser};
 use seg::Policy;
 use seg::Seg;
@@ -216,8 +215,9 @@ fn main() {
 async fn expiration(storage: Arc<Mutex<Seg>>) {
     while RUNNING.load(Ordering::Relaxed) {
         {
-            let mut storage = storage.lock().await;
+            let mut storage = storage.lock();
             storage.expire();
+            MutexGuard::unlock_fair(storage);
         }
 
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -286,7 +286,7 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
         };
 
         {
-            let mut storage = storage.lock().await;
+            let mut storage = storage.lock();
 
             match request {
                 Request::Get(get) => {
@@ -347,6 +347,8 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
                     write_buffer.put_slice(b"ERROR\r\n");
                 }
             }
+
+            MutexGuard::unlock_fair(storage);
         };
 
         // flush the write buffer to the socket
