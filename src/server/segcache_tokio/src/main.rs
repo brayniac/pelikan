@@ -240,6 +240,82 @@ async fn listener<T: ServerConfig>(config: Arc<T>, storage: Arc<Mutex<Seg>>) {
     }
 }
 
+pub enum ResponseKind {
+    Error,
+    Values,
+    ServerError,
+    Stored,
+}
+
+pub struct Value {
+    key: Vec<u8>,
+    value: Vec<u8>,
+    flags: u32,
+    cas: Option<u32>,
+}
+
+pub struct Response {
+    kind: ResponseKind,
+    values: Vec<Value>,
+}
+
+impl Response {
+    fn new() -> Self {
+        Self {
+            kind: ResponseKind::Error,
+            values: Vec::with_capacity(128),
+        }
+    }
+
+    fn clear(&mut self) {
+        self.set_error();
+    }
+
+    fn set_error(&mut self) {
+        self.kind = ResponseKind::Error;
+    }
+
+    fn set_server_error(&mut self) {
+        self.kind = ResponseKind::ServerError;
+    }
+
+    fn set_stored(&mut self) {
+        self.kind = ResponseKind::Stored;
+    }
+
+    fn set_values(&mut self) {
+        self.kind = ResponseKind::Values;
+        self.values.clear();
+    }
+
+    fn add_value(&mut self, value: Value) {
+        self.values.push(value)
+    }
+
+    fn compose(&mut self, buf: &mut Buffer) {
+        match self.kind {
+            ResponseKind::Stored => buf.put_slice(b"STORED\r\n"),
+            ResponseKind::Error => buf.put_slice(b"ERROR\r\n"),
+            ResponseKind::ServerError => buf.put_slice(b"SERVER_ERROR\r\n"),
+            ResponseKind::Values => {
+                for value in self.values.drain(..) {
+                    buf.put_slice(b"VALUE ");
+                    buf.put_slice(&value.key);
+                    let header_fields = if let Some(cas) = value.cas {
+                        format!(" {} {} {}\r\n", value.flags, value.value.len(), cas).into_bytes()
+                    } else {
+                        format!(" {} {}\r\n", value.flags, value.value.len()).into_bytes()
+                    };
+                    buf.put_slice(&header_fields);
+                    buf.put_slice(&value.value);
+                    buf.put_slice(b"\r\n");
+                }
+                buf.put_slice(b"END\r\n");
+            }
+        }
+    }
+}
+
 async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
     let mut socket = socket;
 
@@ -250,6 +326,8 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
 
     let mut read_buffer = Buffer::new(4096);
     let mut write_buffer = Buffer::new(4096);
+
+    let mut response = Response::new();
 
     'session: loop {
         // read data from the socket until we have a complete request
@@ -285,47 +363,40 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
             }
         };
 
+        response.clear();
+
         {
             let mut storage = storage.lock();
 
             match request {
                 Request::Get(get) => {
+                    response.set_values();
+
                     for key in get.keys().iter() {
                         if let Some(item) = storage.get(key) {
-                            let o = item.optional().unwrap_or(&[0, 0, 0, 0]);
-                            let flags = u32::from_be_bytes([o[0], o[1], o[2], o[3]]);
-
-                            write_buffer.put_slice(b"VALUE ");
-                            write_buffer.put_slice(key);
-
-                            match item.value() {
-                                seg::Value::Bytes(b) => {
-                                    let header_fields =
-                                        format!(" {} {}\r\n", flags, b.len()).into_bytes();
-                                    write_buffer.put_slice(&header_fields);
-                                    write_buffer.put_slice(b);
-                                }
-                                seg::Value::U64(v) => {
-                                    let value = format!("{v}").into_bytes();
-
-                                    let header_fields =
-                                        format!(" {} {}\r\n", flags, value.len()).into_bytes();
-                                    write_buffer.put_slice(&header_fields);
-                                    write_buffer.put_slice(&value);
-                                }
+                            let value = match item.value() {
+                                seg::Value::Bytes(b) => b.to_vec(),
+                                seg::Value::U64(v) => format!("{v}").into_bytes(),
                             };
 
-                            write_buffer.put_slice(b"\r\n");
+                            let o = item.optional().unwrap_or(&[0, 0, 0, 0]);
+
+                            response.add_value(Value {
+                                key: key.to_vec(),
+                                cas: None,
+                                flags: u32::from_be_bytes([o[0], o[1], o[2], o[3]]),
+                                value,
+                            });
                         }
                     }
-                    write_buffer.put_slice(b"END\r\n");
                 }
                 Request::Set(set) => {
                     let ttl = set.ttl().get().unwrap_or(0);
                     if ttl < 0 {
                         // immediate expire maps to a delete
                         storage.delete(set.key());
-                        write_buffer.put_slice(b"STORED\r\n");
+                        response.set_stored();
+                        // write_buffer.put_slice(b"STORED\r\n");
                     } else if storage
                         .insert(
                             set.key(),
@@ -335,21 +406,26 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
                         )
                         .is_ok()
                     {
-                        write_buffer.put_slice(b"STORED\r\n");
+                        response.set_stored();
+                        // write_buffer.put_slice(b"STORED\r\n");
                     } else {
-                        write_buffer.put_slice(b"SERVER_ERROR\r\n");
+                        response.set_server_error();
+                        // write_buffer.put_slice(b"SERVER_ERROR\r\n");
                     }
                 }
                 Request::Quit(_) => {
                     break 'session;
                 }
                 _ => {
-                    write_buffer.put_slice(b"ERROR\r\n");
+                    response.set_error();
+                    // write_buffer.put_slice(b"ERROR\r\n");
                 }
             }
 
             MutexGuard::unlock_fair(storage);
         };
+
+        response.compose(&mut write_buffer);
 
         // flush the write buffer to the socket
         while write_buffer.remaining() > 0 {
