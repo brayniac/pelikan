@@ -421,8 +421,6 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
                     // write_buffer.put_slice(b"ERROR\r\n");
                 }
             }
-
-            MutexGuard::unlock_fair(storage);
         };
 
         response.compose(&mut write_buffer);
