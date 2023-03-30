@@ -152,14 +152,14 @@ fn main() {
     let mut log = configure_logging(&*config);
 
     // initialize async runtime for control plane tasks
-    let control_plane = Builder::new_multi_thread()
+    let control_runtime = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(1)
         .build()
         .expect("failed to initialize tokio runtime for control plane");
 
     // spawn logging thread
-    control_plane.spawn(async move {
+    control_runtime.spawn(async move {
         while RUNNING.load(Ordering::Relaxed) {
             clocksource::refresh_clock();
             sleep(Duration::from_millis(1)).await;
@@ -188,34 +188,28 @@ fn main() {
     // build the message passing switchboard
     let switchboard = Switchboard::new(10000, 1024, 1);
 
-    // build the datastructure from the config
+    // initialize storage
     let seg = Seg::new(&*config).expect("failed to initialize storage");
-            // .hash_power(config.seg().hash_power())
-            // .overflow_factor(config.seg().overflow_factor())
-            // .heap_size(config.seg().heap_size())
-            // .segment_size(config.seg().segment_size())
-            // .eviction(eviction)
-            // .datapool_path(config.seg().datapool_path())
-            // .build()
-            // .expect("failed to initilize storage");
 
-    // let storage = Storage::new(&config).expect("failed to initialize storage");
+    // initialize async runtime for storage tasks
+    let storage_runtime = Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(1)
+        .build()
+        .expect("failed to initialize tokio runtime for control plane");
 
-    // initialize async runtime for data plane tasks
-    let data_plane = Builder::new_multi_thread()
+    // spawn storage
+    storage_runtime.spawn(storage(seg, switchboard.get_u_sender().expect("didn't have a queue")));
+
+    // initialize async runtime for worker tasks
+    let worker_runtime = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(config.worker().threads())
         .build()
         .expect("failed to initialize tokio runtime for control plane");
 
-    // // spawn expiration
-    // data_plane.spawn(expiration(storage.clone()));
-
-    // spawn storage
-    data_plane.spawn(storage(seg, switchboard.get_u_sender().expect("didn't have a queue")));
-
     // spawn listener
-    data_plane.spawn(listener(config.clone(), switchboard));
+    worker_runtime.spawn(listener(config.clone(), switchboard));
 
     while RUNNING.load(Ordering::Relaxed) {
         std::thread::sleep(Duration::from_millis(500));
