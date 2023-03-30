@@ -35,6 +35,7 @@ members = [
     "src/storage/datapool",
     "src/storage/seg",
     "src/storage/types",
+    "src/switchboard",
 ]
 
 [workspace.dependencies]

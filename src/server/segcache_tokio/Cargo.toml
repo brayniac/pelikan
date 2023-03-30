@@ -9,12 +9,14 @@ edition = "2021"
 backtrace = "0.3.67"
 clap = { workspace = true }
 clocksource = "0.6.0"
+switchboard = { path = "../../switchboard" }
 common = { path = "../../common" }
 config = { path = "../../config" }
 logger = { path = "../../logger" }
 protocol-memcache = { path = "../../protocol/memcache" }
-seg = { path = "../../storage/seg" }
+# seg = { path = "../../storage/seg" }
 metriken = { workspace = true }
 tokio = { version = "1.21.2", features = ["full"] }
 session = { path = "../../session" }
 parking_lot = "0.12.1"
+entrystore = { path = "../../entrystore" }

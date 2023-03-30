@@ -1,3 +1,9 @@
+use protocol_memcache::Execute;
+use entrystore::EntryStore;
+use entrystore::Seg;
+use protocol_memcache::Compose;
+use switchboard::Switchboard;
+use switchboard::DirectedQueue;
 use config::ServerConfig;
 use config::WorkerConfig;
 use protocol_memcache::Parse;
@@ -11,9 +17,9 @@ extern crate logger;
 use backtrace::Backtrace;
 use clap::Arg;
 use clap::Command;
-use config::seg::Eviction;
+// use config::seg::Eviction;
 use config::time::TimeType;
-use config::SegConfig;
+// use config::SegConfig;
 use config::SegcacheConfig;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
@@ -21,10 +27,10 @@ use logger::configure_logging;
 use metriken::Counter;
 use metriken::Gauge;
 use metriken::Heatmap;
-use parking_lot::{Mutex, MutexGuard};
-use protocol_memcache::{Request, RequestParser};
-use seg::Policy;
-use seg::Seg;
+// use parking_lot::{Mutex, MutexGuard};
+use protocol_memcache::{Request, RequestParser, Response};
+// use seg::Policy;
+// use seg::Seg;
 use session::Buffer;
 use std::io::ErrorKind;
 use std::sync::Arc;
@@ -164,33 +170,34 @@ fn main() {
 
     // initialize storage
 
-    // build up the eviction policy from the config
-    let eviction = match config.seg().eviction() {
-        Eviction::None => Policy::None,
-        Eviction::Random => Policy::Random,
-        Eviction::RandomFifo => Policy::RandomFifo,
-        Eviction::Fifo => Policy::Fifo,
-        Eviction::Cte => Policy::Cte,
-        Eviction::Util => Policy::Util,
-        Eviction::Merge => Policy::Merge {
-            max: config.seg().merge_max(),
-            merge: config.seg().merge_target(),
-            compact: config.seg().compact_target(),
-        },
-    };
+    // // build up the eviction policy from the config
+    // let eviction = match config.seg().eviction() {
+    //     Eviction::None => Policy::None,
+    //     Eviction::Random => Policy::Random,
+    //     Eviction::RandomFifo => Policy::RandomFifo,
+    //     Eviction::Fifo => Policy::Fifo,
+    //     Eviction::Cte => Policy::Cte,
+    //     Eviction::Util => Policy::Util,
+    //     Eviction::Merge => Policy::Merge {
+    //         max: config.seg().merge_max(),
+    //         merge: config.seg().merge_target(),
+    //         compact: config.seg().compact_target(),
+    //     },
+    // };
+
+    // build the message passing switchboard
+    let switchboard = Switchboard::new(10000, 1024, 1);
 
     // build the datastructure from the config
-    let storage = Arc::new(Mutex::new(
-        Seg::builder()
-            .hash_power(config.seg().hash_power())
-            .overflow_factor(config.seg().overflow_factor())
-            .heap_size(config.seg().heap_size())
-            .segment_size(config.seg().segment_size())
-            .eviction(eviction)
-            .datapool_path(config.seg().datapool_path())
-            .build()
-            .expect("failed to initilize storage"),
-    ));
+    let seg = Seg::new(&*config).expect("failed to initialize storage");
+            // .hash_power(config.seg().hash_power())
+            // .overflow_factor(config.seg().overflow_factor())
+            // .heap_size(config.seg().heap_size())
+            // .segment_size(config.seg().segment_size())
+            // .eviction(eviction)
+            // .datapool_path(config.seg().datapool_path())
+            // .build()
+            // .expect("failed to initilize storage");
 
     // let storage = Storage::new(&config).expect("failed to initialize storage");
 
@@ -201,122 +208,72 @@ fn main() {
         .build()
         .expect("failed to initialize tokio runtime for control plane");
 
-    // spawn expiration
-    data_plane.spawn(expiration(storage.clone()));
+    // // spawn expiration
+    // data_plane.spawn(expiration(storage.clone()));
+
+    // spawn storage
+    data_plane.spawn(storage(seg, switchboard.get_u_sender().expect("didn't have a queue")));
 
     // spawn listener
-    data_plane.spawn(listener(config.clone(), storage));
+    data_plane.spawn(listener(config.clone(), switchboard));
 
     while RUNNING.load(Ordering::Relaxed) {
         std::thread::sleep(Duration::from_millis(500));
     }
 }
 
-async fn expiration(storage: Arc<Mutex<Seg>>) {
-    while RUNNING.load(Ordering::Relaxed) {
-        {
-            let mut storage = storage.lock();
-            storage.expire();
-            MutexGuard::unlock_fair(storage);
-        }
+// async fn expiration(storage: Arc<Mutex<Seg>>) {
+//     while RUNNING.load(Ordering::Relaxed) {
+//         {
+//             let mut storage = storage.lock();
+//             storage.expire();
+//             MutexGuard::unlock_fair(storage);
+//         }
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
-    }
-}
+//         tokio::time::sleep(Duration::from_secs(1)).await;
+//     }
+// }
 
-async fn listener<T: ServerConfig>(config: Arc<T>, storage: Arc<Mutex<Seg>>) {
+async fn listener<T: ServerConfig>(config: Arc<T>, switchboard: Switchboard<Request, Response>) {
     let listener = TcpListener::bind(config.server().socket_addr().expect("bad socket addr"))
         .await
         .expect("failed to bind service port");
 
     loop {
         if let Ok((socket, _)) = listener.accept().await {
-            let storage = storage.clone();
-
-            tokio::spawn(worker(socket, storage));
+            if let Some(queue) = switchboard.get_t_sender() {
+                tokio::spawn(worker(socket, queue));
+            } else {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
         } else {
             tokio::time::sleep(Duration::from_millis(1)).await;
         }
     }
 }
 
-pub enum ResponseKind {
-    Error,
-    Values,
-    ServerError,
-    Stored,
-}
+async fn storage(mut storage: Seg, mut queue: DirectedQueue<Response, Request>) {
+    loop {
+        storage.expire();
 
-pub struct Value {
-    key: Vec<u8>,
-    value: Vec<u8>,
-    flags: u32,
-    cas: Option<u32>,
-}
-
-pub struct Response {
-    kind: ResponseKind,
-    values: Vec<Value>,
-}
-
-impl Response {
-    fn new() -> Self {
-        Self {
-            kind: ResponseKind::Error,
-            values: Vec::with_capacity(128),
-        }
-    }
-
-    fn clear(&mut self) {
-        self.set_error();
-    }
-
-    fn set_error(&mut self) {
-        self.kind = ResponseKind::Error;
-    }
-
-    fn set_server_error(&mut self) {
-        self.kind = ResponseKind::ServerError;
-    }
-
-    fn set_stored(&mut self) {
-        self.kind = ResponseKind::Stored;
-    }
-
-    fn set_values(&mut self) {
-        self.kind = ResponseKind::Values;
-        self.values.clear();
-    }
-
-    fn add_value(&mut self, value: Value) {
-        self.values.push(value)
-    }
-
-    fn compose(&mut self, buf: &mut Buffer) {
-        match self.kind {
-            ResponseKind::Stored => buf.put_slice(b"STORED\r\n"),
-            ResponseKind::Error => buf.put_slice(b"ERROR\r\n"),
-            ResponseKind::ServerError => buf.put_slice(b"SERVER_ERROR\r\n"),
-            ResponseKind::Values => {
-                for value in self.values.drain(..) {
-                    buf.put_slice(b"VALUE ");
-                    buf.put_slice(&value.key);
-                    let header_fields = if let Some(cas) = value.cas {
-                        format!(" {} {} {}\r\n", value.flags, value.value.len(), cas).into_bytes()
-                    } else {
-                        format!(" {} {}\r\n", value.flags, value.value.len()).into_bytes()
-                    };
-                    buf.put_slice(&header_fields);
-                    buf.put_slice(&value.value);
-                    buf.put_slice(b"\r\n");
-                }
-                buf.put_slice(b"END\r\n");
+        let (sender, key, request) = match queue.recv().await {
+            Ok(v) => (v.sender(), v.key(), v.into_inner()),
+            Err(_) => {
+                error!("directedqueue unexpectedly closed");
+                return;
             }
+        };
+
+        let response = storage.execute(&request);
+
+        if queue.send_to(sender, key, response).await.is_err() {
+            error!("directedqueue unexpectedly closed");
+            return;
         }
     }
 }
 
-async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
+async fn worker(socket: TcpStream, mut queue: DirectedQueue<Request, Response>) {
     let mut socket = socket;
 
     // initialize parser
@@ -327,7 +284,7 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
     let mut read_buffer = Buffer::new(4096);
     let mut write_buffer = Buffer::new(4096);
 
-    let mut response = Response::new();
+    // let mut response = Response::new();
 
     'session: loop {
         // read data from the socket until we have a complete request
@@ -363,65 +320,27 @@ async fn worker(socket: TcpStream, storage: Arc<Mutex<Seg>>) {
             }
         };
 
-        response.clear();
+        if queue.send_to(0, queue.key(), request, ).await.is_err() {
+            error!("directed queue unexpectedly closed");
+            return;
+        }
 
-        {
-            let mut storage = storage.lock();
+        let response;
 
-            match request {
-                Request::Get(get) => {
-                    response.set_values();
-
-                    for key in get.keys().iter() {
-                        if let Some(item) = storage.get(key) {
-                            let value = match item.value() {
-                                seg::Value::Bytes(b) => b.to_vec(),
-                                seg::Value::U64(v) => format!("{v}").into_bytes(),
-                            };
-
-                            let o = item.optional().unwrap_or(&[0, 0, 0, 0]);
-
-                            response.add_value(Value {
-                                key: key.to_vec(),
-                                cas: None,
-                                flags: u32::from_be_bytes([o[0], o[1], o[2], o[3]]),
-                                value,
-                            });
-                        }
-                    }
+        loop {
+            let (key, r) = match queue.recv().await {
+                Ok(r) => (r.key(), r.into_inner()),
+                Err(_) => {
+                    error!("directed queue unexpectedly closed");
+                    return;
                 }
-                Request::Set(set) => {
-                    let ttl = set.ttl().get().unwrap_or(0);
-                    if ttl < 0 {
-                        // immediate expire maps to a delete
-                        storage.delete(set.key());
-                        response.set_stored();
-                        // write_buffer.put_slice(b"STORED\r\n");
-                    } else if storage
-                        .insert(
-                            set.key(),
-                            set.value(),
-                            Some(&set.flags().to_be_bytes()),
-                            Duration::from_secs(ttl as u64),
-                        )
-                        .is_ok()
-                    {
-                        response.set_stored();
-                        // write_buffer.put_slice(b"STORED\r\n");
-                    } else {
-                        response.set_server_error();
-                        // write_buffer.put_slice(b"SERVER_ERROR\r\n");
-                    }
-                }
-                Request::Quit(_) => {
-                    break 'session;
-                }
-                _ => {
-                    response.set_error();
-                    // write_buffer.put_slice(b"ERROR\r\n");
-                }
+            };
+
+            if key == queue.key() {
+                response = r;
+                break;
             }
-        };
+        }
 
         response.compose(&mut write_buffer);
 
