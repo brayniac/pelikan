@@ -2396,6 +2396,7 @@ dependencies = [
  "logger",
  "metriken",
  "net",
+ "parking_lot",
  "protocol-admin",
  "protocol-common",
  "session",
