@@ -23,7 +23,7 @@ pub use server::ServerSession;
 use std::os::unix::prelude::AsRawFd;
 
 use ::net::*;
-use common::time::Nanoseconds;
+use common::time::precise::Instant;
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -78,10 +78,8 @@ pub static SESSION_SEND_BYTE: Counter = Counter::new();
     name = "request_latency",
     description = "distribution of request latencies in nanoseconds"
 )]
-pub static REQUEST_LATENCY: Heatmap =
-    Heatmap::new(0, 8, 32, Duration::from_secs(60), Duration::from_secs(1));
-
-type Instant = common::time::Instant<Nanoseconds<u64>>;
+pub static REQUEST_LATENCY: Histogram =
+    Histogram::new(0, 7, 32, Duration::from_secs(1), 60);
 
 // The size of one kilobyte, in bytes
 const KB: usize = 1024;

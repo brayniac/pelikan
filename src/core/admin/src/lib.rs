@@ -525,10 +525,10 @@ impl Admin {
                 data.push(format!("{}: {}", metric.name(), counter.value()));
             } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
                 data.push(format!("{}: {}", metric.name(), gauge.value()));
-            } else if let Some(heatmap) = any.downcast_ref::<Heatmap>() {
+            } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
                 for (label, value) in PERCENTILES {
                     if let Some(Ok(bucket)) = heatmap.percentile(*value) {
-                        data.push(format!("{}_{}: {}", metric.name(), label, bucket.high()));
+                        data.push(format!("{}_{}: {}", metric.name(), label, bucket.upper()));
                     }
                 }
             }
@@ -564,14 +564,14 @@ impl Admin {
                 data.push(format!("\"{}\": {}", metric.name(), counter.value()));
             } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
                 data.push(format!("\"{}\": {}", metric.name(), gauge.value()));
-            } else if let Some(heatmap) = any.downcast_ref::<Heatmap>() {
+            } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
                 for (label, value) in PERCENTILES {
                     if let Some(Ok(bucket)) = heatmap.percentile(*value) {
                         data.push(format!(
                             "\"{}_{}\": {}",
                             metric.name(),
                             label,
-                            bucket.high()
+                            bucket.upper()
                         ));
                     }
                 }
@@ -641,7 +641,7 @@ impl Admin {
                     metric.name(),
                     gauge.value()
                 ));
-            } else if let Some(heatmap) = any.downcast_ref::<Heatmap>() {
+            } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
                 for (label, value) in PERCENTILES {
                     if let Some(Ok(bucket)) = heatmap.percentile(*value) {
                         data.push(format!(
@@ -649,7 +649,7 @@ impl Admin {
                             metric.name(),
                             metric.name(),
                             label,
-                            bucket.high()
+                            bucket.upper()
                         ));
                     }
                 }

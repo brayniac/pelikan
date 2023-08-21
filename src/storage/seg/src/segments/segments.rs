@@ -182,7 +182,7 @@ impl Segments {
         ttl_buckets: &mut TtlBuckets,
         hashtable: &mut HashTable,
     ) -> Result<(), SegmentsError> {
-        let now = Instant::now();
+        let now = clocksource::precise::Instant::now();
         match self.evict.policy() {
             Policy::Merge { .. } => {
                 SEGMENT_EVICT.increment();

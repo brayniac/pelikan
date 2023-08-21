@@ -118,7 +118,7 @@ impl TtlBuckets {
             self.last_expired = now;
         }
 
-        let start = Instant::now();
+        let start = clocksource::precise::Instant::now();
         let mut expired = 0;
         for bucket in self.buckets.iter_mut() {
             expired += bucket.expire(hashtable, segments);
@@ -130,7 +130,7 @@ impl TtlBuckets {
     }
 
     pub(crate) fn clear(&mut self, hashtable: &mut HashTable, segments: &mut Segments) -> usize {
-        let start = Instant::now();
+        let start = clocksource::precise::Instant::now();
         let mut cleared = 0;
         for bucket in self.buckets.iter_mut() {
             cleared += bucket.clear(hashtable, segments);

@@ -96,6 +96,7 @@ use ::net::*;
 use admin::AdminBuilder;
 use common::signal::Signal;
 use common::ssl::tls_acceptor;
+use common::time::precise::Instant;
 use config::*;
 use core::marker::PhantomData;
 use core::time::Duration;
@@ -118,8 +119,6 @@ use listener::ListenerBuilder;
 use workers::WorkersBuilder;
 
 pub use process::{Process, ProcessBuilder};
-
-type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 
 // TODO(bmartin): this *should* be plenty safe, the queue should rarely ever be
 // full, and a single wakeup should drain at least one message and make room for

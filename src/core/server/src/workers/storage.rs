@@ -14,8 +14,8 @@ pub static STORAGE_EVENT_LOOP: Counter = Counter::new();
     name = "storage_queue_depth",
     description = "the distribution of the depth of the storage queue on each loop"
 )]
-pub static STORAGE_QUEUE_DEPTH: Heatmap =
-    Heatmap::new(0, 8, 20, Duration::from_secs(60), Duration::from_secs(1));
+pub static STORAGE_QUEUE_DEPTH: Histogram =
+    Histogram::new(0, 7, 20, Duration::from_secs(1), 60);
 
 pub struct StorageWorkerBuilder<Request, Response, Storage> {
     nevent: usize,

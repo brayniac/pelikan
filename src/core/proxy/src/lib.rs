@@ -16,6 +16,7 @@ use ::net::*;
 use admin::AdminBuilder;
 use common::signal::Signal;
 use common::ssl::tls_acceptor;
+use common::time::precise::Instant;
 use config::proxy::*;
 use config::*;
 use core::marker::PhantomData;
@@ -30,8 +31,6 @@ use slab::Slab;
 use std::io::{Error, ErrorKind, Result};
 use std::sync::Arc;
 use switchboard::{Queues, Waker};
-
-type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 
 mod backend;
 mod frontend;

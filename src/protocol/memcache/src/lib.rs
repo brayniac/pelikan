@@ -10,6 +10,7 @@ mod response;
 mod storage;
 mod util;
 
+
 pub(crate) use util::*;
 
 pub use request::*;
@@ -19,8 +20,10 @@ pub use storage::*;
 pub use protocol_common::*;
 
 pub use common::expiry::TimeType;
+
+use common::time::precise::Instant;
 use logger::Klog;
-use metriken::{metric, Counter, Heatmap};
+use metriken::{metric, Counter, Histogram};
 
 const CRLF: &[u8] = b"\r\n";
 
@@ -29,8 +32,6 @@ pub enum MemcacheError {
     ClientError(ClientError),
     ServerError(ServerError),
 }
-
-type Instant = common::time::Instant<common::time::Nanoseconds<u64>>;
 
 /*
  * GET
@@ -55,12 +56,12 @@ pub static GET_KEY_MISS: Counter = Counter::new();
     name = "get_cardinality",
     description = "distribution of key cardinality for get requests"
 )]
-pub static GET_CARDINALITY: Heatmap = Heatmap::new(
+pub static GET_CARDINALITY: Histogram = Histogram::new(
     0,
-    8,
+    7,
     20,
-    core::time::Duration::from_secs(60),
     core::time::Duration::from_secs(1),
+    60,
 );
 
 /*

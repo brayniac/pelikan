@@ -16,7 +16,6 @@ pub static ADMIN_CONN_CLOSE: Counter = Counter::new();
 
 pub(crate) async fn admin(mut log_drain: Box<dyn logger::Drain>, admin_listener: TcpListener) {
     loop {
-        clocksource::refresh_clock();
         let _ = log_drain.flush();
 
         // accept a new client
@@ -157,14 +156,14 @@ async fn stats_response(socket: &mut tokio::net::TcpStream) -> Result<(), Error>
             data.push(format!("STAT {} {}\r\n", metric.name(), counter.value()));
         } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
             data.push(format!("STAT {} {}\r\n", metric.name(), gauge.value()));
-        } else if let Some(heatmap) = any.downcast_ref::<Heatmap>() {
+        } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
             for (label, value) in PERCENTILES {
                 if let Some(Ok(bucket)) = heatmap.percentile(*value) {
                     data.push(format!(
                         "STAT {}_{} {}\r\n",
                         metric.name(),
                         label,
-                        bucket.high()
+                        bucket.upper()
                     ));
                 }
             }
