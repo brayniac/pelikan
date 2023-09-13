@@ -511,6 +511,9 @@ impl Admin {
     /// get_key_miss: 0
     /// ```
     fn human_stats(&self) -> String {
+        let end = UnixInstant::now();
+        let start = end - Duration::from_secs(60);
+
         let mut data = Vec::new();
 
         for metric in &metriken::metrics() {
@@ -525,10 +528,19 @@ impl Admin {
                 data.push(format!("{}: {}", metric.name(), counter.value()));
             } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
                 data.push(format!("{}: {}", metric.name(), gauge.value()));
-            } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
-                for (label, value) in PERCENTILES {
-                    if let Some(Ok(bucket)) = heatmap.percentile(*value) {
-                        data.push(format!("{}_{}: {}", metric.name(), label, bucket.upper()));
+            } else if let Some(histogram) = any.downcast_ref::<Histogram>() {
+                let percentiles: Vec<f64> = PERCENTILES.iter().map(|v| v.1).collect();
+
+                if let Some(Ok(snapshot)) = histogram.snapshot_between(start..end) {
+                    if let Ok(result) = snapshot.percentiles(&percentiles) {
+                        for (label, value) in PERCENTILES.iter().map(|v| v.0).zip(result.iter().map(|(_, b)| b.end())) {
+                            data.push(format!(
+                                "{}/{}: {}",
+                                metric.formatted(metriken::Format::Simple),
+                                label,
+                                value,
+                            ));
+                        }
                     }
                 }
             }
@@ -548,6 +560,9 @@ impl Admin {
     /// {"get": 0,"get_cardinality_p25": 0,"get_cardinality_p50": 0, ... }
     /// ```
     fn json_stats(&self) -> String {
+        let end = UnixInstant::now();
+        let start = end - Duration::from_secs(60);
+
         let head = "{".to_owned();
 
         let mut data = Vec::new();
@@ -564,15 +579,19 @@ impl Admin {
                 data.push(format!("\"{}\": {}", metric.name(), counter.value()));
             } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
                 data.push(format!("\"{}\": {}", metric.name(), gauge.value()));
-            } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
-                for (label, value) in PERCENTILES {
-                    if let Some(Ok(bucket)) = heatmap.percentile(*value) {
-                        data.push(format!(
-                            "\"{}_{}\": {}",
-                            metric.name(),
-                            label,
-                            bucket.upper()
-                        ));
+            } else if let Some(histogram) = any.downcast_ref::<Histogram>() {
+                let percentiles: Vec<f64> = PERCENTILES.iter().map(|v| v.1).collect();
+
+                if let Some(Ok(snapshot)) = histogram.snapshot_between(start..end) {
+                    if let Ok(result) = snapshot.percentiles(&percentiles) {
+                        for (label, value) in PERCENTILES.iter().map(|v| v.0).zip(result.iter().map(|(_, b)| b.end())) {
+                            data.push(format!(
+                                "\"{}_{}\": {}",
+                                metric.name(),
+                                label,
+                                value,
+                            ));
+                        }
                     }
                 }
             }
@@ -617,6 +636,9 @@ impl Admin {
     /// get_key_miss 0
     /// ```
     fn prometheus_stats(&self) -> String {
+        let end = UnixInstant::now();
+        let start = end - Duration::from_secs(60);
+
         let mut data = Vec::new();
 
         for metric in &metriken::metrics() {
@@ -641,16 +663,20 @@ impl Admin {
                     metric.name(),
                     gauge.value()
                 ));
-            } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
-                for (label, value) in PERCENTILES {
-                    if let Some(Ok(bucket)) = heatmap.percentile(*value) {
-                        data.push(format!(
-                            "# TYPE {} gauge\n{}{{percentile=\"{}\"}} {}",
-                            metric.name(),
-                            metric.name(),
-                            label,
-                            bucket.upper()
-                        ));
+            } else if let Some(histogram) = any.downcast_ref::<Histogram>() {
+                let percentiles: Vec<f64> = PERCENTILES.iter().map(|v| v.1).collect();
+
+                if let Some(Ok(snapshot)) = histogram.snapshot_between(start..end) {
+                    if let Ok(result) = snapshot.percentiles(&percentiles) {
+                        for (percentile, value) in result.iter().map(|(p, b)| (p, b.end())) {
+                            data.push(format!(
+                                "# TYPE {} gauge\n{}{{percentile=\"{:02}\"}} {}",
+                                metric.name(),
+                                metric.name(),
+                                percentile,
+                                value,
+                            ));
+                        }
                     }
                 }
             }

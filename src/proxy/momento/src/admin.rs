@@ -124,6 +124,9 @@ async fn handle_admin_client(mut socket: tokio::net::TcpStream) {
 }
 
 async fn stats_response(socket: &mut tokio::net::TcpStream) -> Result<(), Error> {
+    let end = UnixInstant::now();
+    let start = end - Duration::from_secs(60);
+
     let mut data = Vec::new();
     for metric in &metriken::metrics() {
         let any = match metric.as_any() {
@@ -156,15 +159,19 @@ async fn stats_response(socket: &mut tokio::net::TcpStream) -> Result<(), Error>
             data.push(format!("STAT {} {}\r\n", metric.name(), counter.value()));
         } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
             data.push(format!("STAT {} {}\r\n", metric.name(), gauge.value()));
-        } else if let Some(heatmap) = any.downcast_ref::<Histogram>() {
-            for (label, value) in PERCENTILES {
-                if let Some(Ok(bucket)) = heatmap.percentile(*value) {
-                    data.push(format!(
-                        "STAT {}_{} {}\r\n",
-                        metric.name(),
-                        label,
-                        bucket.upper()
-                    ));
+        } else if let Some(histogram) = any.downcast_ref::<Histogram>() {
+            let percentiles: Vec<f64> = PERCENTILES.iter().map(|v| v.1).collect();
+
+            if let Some(Ok(snapshot)) = histogram.snapshot_between(start..end) {
+                if let Ok(result) = snapshot.percentiles(&percentiles) {
+                    for (label, value) in PERCENTILES.iter().map(|v| v.0).zip(result.iter().map(|(_, b)| b.end())) {
+                        data.push(format!(
+                            "STAT {}_{} {}\r\n",
+                            metric.name(),
+                            label,
+                            value,
+                        ));
+                    }
                 }
             }
         }

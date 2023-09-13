@@ -492,8 +492,8 @@ dependencies = [
 
 [[package]]
 name = "clocksource"
-version = "0.7.0"
-source = "git+https://github.com/brayniac/rustcommon?branch=free-running#d4c7eb285fb49ece7305fb4e569af091ee9134fc"
+version = "0.7.1"
+source = "git+https://github.com/brayniac/rustcommon?branch=free-running#028e1ccbba9bcf0ca61367509ba40e59267a91b2"
 dependencies = [
  "libc",
  "time",
@@ -722,6 +722,12 @@ dependencies = [
  "memmap2",
  "tempfile",
 ]
+
+[[package]]
+name = "deranged"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2696e8a945f658fd14dc3b87242e6b80cd0f36ff04ea560fa39082368847946"
 
 [[package]]
 name = "digest"
@@ -1024,7 +1030,7 @@ dependencies = [
 [[package]]
 name = "histogram"
 version = "0.8.0"
-source = "git+https://github.com/brayniac/rustcommon?branch=free-running#d4c7eb285fb49ece7305fb4e569af091ee9134fc"
+source = "git+https://github.com/brayniac/rustcommon?branch=free-running#028e1ccbba9bcf0ca61367509ba40e59267a91b2"
 dependencies = [
  "clocksource",
  "thiserror",
@@ -1224,9 +1230,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "libc"
-version = "0.2.139"
+version = "0.2.148"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
+checksum = "9cdc71e17332e86d2e1d38c1f99edcb6288ee11b815fb1a4b049eaa2114d369b"
 
 [[package]]
 name = "libloading"
@@ -1334,7 +1340,7 @@ dependencies = [
 [[package]]
 name = "metriken"
 version = "0.2.3"
-source = "git+https://github.com/brayniac/rustcommon?branch=free-running#d4c7eb285fb49ece7305fb4e569af091ee9134fc"
+source = "git+https://github.com/brayniac/rustcommon?branch=free-running#028e1ccbba9bcf0ca61367509ba40e59267a91b2"
 dependencies = [
  "histogram",
  "linkme",
@@ -1347,7 +1353,7 @@ dependencies = [
 [[package]]
 name = "metriken-derive"
 version = "0.2.0"
-source = "git+https://github.com/brayniac/rustcommon?branch=free-running#d4c7eb285fb49ece7305fb4e569af091ee9134fc"
+source = "git+https://github.com/brayniac/rustcommon?branch=free-running#028e1ccbba9bcf0ca61367509ba40e59267a91b2"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1586,15 +1592,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num_threads"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "object"
 version = "0.30.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1711,7 +1708,7 @@ dependencies = [
  "phf_shared",
  "proc-macro2",
  "quote",
- "syn 2.0.27",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -2156,7 +2153,7 @@ dependencies = [
 [[package]]
 name = "ringlog"
 version = "0.2.0"
-source = "git+https://github.com/brayniac/rustcommon?branch=free-running#d4c7eb285fb49ece7305fb4e569af091ee9134fc"
+source = "git+https://github.com/brayniac/rustcommon?branch=free-running#028e1ccbba9bcf0ca61367509ba40e59267a91b2"
 dependencies = [
  "ahash",
  "clocksource",
@@ -2329,9 +2326,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.152"
+version = "1.0.188"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb7d1f0d3021d347a83e556fc4683dea2ea09d87bccdf88ff5c12545d89d5efb"
+checksum = "cf9e0fcba69a370eed61bcf2b728575f726b50b55cba78064753d708ddc7549e"
 dependencies = [
  "serde_derive",
 ]
@@ -2348,13 +2345,13 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.152"
+version = "1.0.188"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af487d118eecd09402d70a5d72551860e788df87b464af30e5ea6a38c75c541e"
+checksum = "4eca7ac642d82aa35b60049a6eccb4be6be75e599bd2e9adb5f875a737654af2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.107",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -2538,9 +2535,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.27"
+version = "2.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b60f673f44a8255b9c8c657daf66a596d435f2da81a555b06dc644d080ba45e0"
+checksum = "239814284fd6f1a4ffe4ca893952cdd93c224b6a1571c9a9eadd670295c0c9e2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2598,22 +2595,22 @@ checksum = "949517c0cf1bf4ee812e2e07e08ab448e3ae0d23472aee8a06c985f0c8815b16"
 
 [[package]]
 name = "thiserror"
-version = "1.0.38"
+version = "1.0.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a9cd18aa97d5c45c6603caea1da6628790b37f7a34b6ca89522331c5180fed0"
+checksum = "9d6d7a740b8a666a7e828dd00da9c0dc290dff53154ea77ac109281de90589b7"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.38"
+version = "1.0.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fb327af4685e4d03fa8cbcf1716380da910eeb2bb8be417e7f9fd3fb164f36f"
+checksum = "49922ecae66cc8a249b77e68d1d0623c1b2c514f0060c27cdc68bd62a1219d35"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.107",
+ "syn 2.0.32",
 ]
 
 [[package]]
@@ -2632,21 +2629,31 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.14"
+version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3f9a28b618c3a6b9251b6908e9c99e04b9e5c02e6581ccbb67d59c34ef7f9b"
+checksum = "17f6bb557fd245c28e6411aa56b6403c689ad95061f50e4be16c274e70a17e48"
 dependencies = [
+ "deranged",
  "itoa 1.0.3",
- "libc",
- "num_threads",
+ "serde",
+ "time-core",
  "time-macros",
 ]
 
 [[package]]
-name = "time-macros"
-version = "0.2.4"
+name = "time-core"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42657b1a6f4d817cda8e7a0ace261fe0cc946cf3a80314390b22cc61ae080792"
+checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
+
+[[package]]
+name = "time-macros"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a942f44339478ef67935ab2bbaec2fb0322496cf3cbe84b261e06ac3814c572"
+dependencies = [
+ "time-core",
+]
 
 [[package]]
 name = "tiny_http"
