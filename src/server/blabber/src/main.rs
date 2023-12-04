@@ -34,16 +34,16 @@ impl Message {
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {
-    #[arg(long)]
+    #[arg(long, default_value_t = 1)]
     threads: usize,
 
-    #[arg(long)]
+    #[arg(long, default_value_t = 128)]
     queue_depth: usize,
 
-    #[arg(long)]
+    #[arg(long, default_value_t = 1)]
     fanout: u8,
 
-    #[arg(long)]
+    #[arg(long, default_value_t = 1)]
     publish_rate: usize,
 }
 
