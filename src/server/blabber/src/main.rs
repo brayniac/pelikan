@@ -1,3 +1,5 @@
+use tokio::runtime::Runtime;
+use std::time::Duration;
 use broadcaster::RecvError;
 use clap::Parser;
 use std::time::SystemTime;
@@ -18,6 +20,17 @@ impl Default for Message {
     }
 }
 
+impl Message {
+    pub fn new() -> Self {
+        let now = SystemTime::now();
+        let unix_ns = now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
+
+        Self {
+            timestamp: unix_ns,
+        }
+    }
+}
+
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {
@@ -34,47 +47,55 @@ pub struct Config {
     publish_rate: usize,
 }
 
-impl Message {
-    pub fn new() -> Self {
-        let now = SystemTime::now();
-        let unix_ns = now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
-
-        Self {
-            timestamp: unix_ns,
-        }
-    }
-}
-
 fn main() {
+    // load the configuration from cli args
     let config = Config::parse();
 
-    let runtime = Builder::new_multi_thread()
+    // runtime for the listener
+    let listener_runtime = Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(1)
+        .build()
+        .expect("failed to initialize tokio runtime");
+
+    // runtime for the workers and fanout
+    let worker_runtime = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(config.threads)
         .build()
         .expect("failed to initialize tokio runtime");
 
-    let tx = broadcaster::channel::<Message>(&runtime, config.queue_depth, config.fanout);
+    // start broadcaster using the worker runtime
+    let tx = broadcaster::channel::<Message>(&worker_runtime, config.queue_depth, config.fanout);
 
-    runtime.spawn(listen(tx.clone()));
+    // start the listener
+    listener_runtime.spawn(listen(tx.clone(), worker_runtime));
+
+    // continuously publish messages
+
+    let interval = Duration::from_secs(1) / config.publish_rate as u32;
 
     loop {
-        std::thread::sleep(core::time::Duration::from_secs(1));
+        std::thread::sleep(interval);
 
         let _ = tx.send(Message::new());
     }
 }
 
-async fn listen(tx: Sender<Message>) -> Result<(), std::io::Error> {
+// a task that listens for new connections and spawns worker tasks to serve the
+// new clients
+async fn listen(tx: Sender<Message>, worker_runtime: Runtime) -> Result<(), std::io::Error> {
     let listener = TcpListener::bind("0.0.0.0:12321").await?;
 
     loop {
         let (socket, _) = listener.accept().await?;
 
-        tokio::spawn(serve(socket, tx.subscribe()));
+        // spawn the worker task onto the worker runtime
+        worker_runtime.spawn(serve(socket, tx.subscribe()));
     }
 }
 
+// a task that serves messages to a client
 async fn serve(mut socket: tokio::net::TcpStream, mut rx: Receiver<Message>) -> Result<(), std::io::Error> {
     loop {
         match rx.recv().await {
