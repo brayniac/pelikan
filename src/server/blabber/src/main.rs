@@ -1,9 +1,8 @@
 use broadcaster::RecvError;
+use clap::Parser;
 use std::time::SystemTime;
 use broadcaster::Receiver;
 use broadcaster::Sender;
-use std::time::Instant;
-use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::runtime::Builder;
@@ -19,6 +18,22 @@ impl Default for Message {
     }
 }
 
+#[derive(Parser, Debug, Clone)]
+#[command(author, version, about, long_about = None)]
+pub struct Config {
+    #[arg(long)]
+    threads: usize,
+
+    #[arg(long)]
+    queue_depth: usize,
+
+    #[arg(long)]
+    fanout: u8,
+
+    #[arg(long)]
+    publish_rate: usize,
+}
+
 impl Message {
     pub fn new() -> Self {
         let now = SystemTime::now();
@@ -31,19 +46,17 @@ impl Message {
 }
 
 fn main() {
-    println!("Hello, world!");
+    let config = Config::parse();
 
     let runtime = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(2)
+        .worker_threads(config.threads)
         .build()
         .expect("failed to initialize tokio runtime");
 
-    let tx = broadcaster::channel::<Message>(&runtime, 128, 7);
-
+    let tx = broadcaster::channel::<Message>(&runtime, config.queue_depth, config.fanout);
 
     runtime.spawn(listen(tx.clone()));
-
 
     loop {
         std::thread::sleep(core::time::Duration::from_secs(1));

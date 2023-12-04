@@ -11,4 +11,5 @@ license = { workspace = true }
 
 [dependencies]
 broadcaster = { git = "https://github.com/brayniac/broadcaster" }
+clap = { version = "4.4.7", features = ["derive"] }
 tokio = { version = "1.34.0", features = ["full"] }
