@@ -27,6 +27,7 @@ members = [
     "src/proxy/momento",
     "src/proxy/ping",
     "src/proxy/thrift",
+    "src/server/blabber",
     "src/server/pingserver",
     "src/server/rds",
     "src/server/segcache",
