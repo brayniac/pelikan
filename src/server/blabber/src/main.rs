@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 use std::time::Duration;
 use broadcaster::RecvError;
@@ -59,17 +60,17 @@ fn main() {
         .expect("failed to initialize tokio runtime");
 
     // runtime for the workers and fanout
-    let worker_runtime = Builder::new_multi_thread()
+    let worker_runtime = Arc::new(Builder::new_multi_thread()
         .enable_all()
         .worker_threads(config.threads)
         .build()
-        .expect("failed to initialize tokio runtime");
+        .expect("failed to initialize tokio runtime"));
 
     // start broadcaster using the worker runtime
     let tx = broadcaster::channel::<Message>(&worker_runtime, config.queue_depth, config.fanout);
 
     // start the listener
-    listener_runtime.spawn(listen(tx.clone(), worker_runtime));
+    listener_runtime.spawn(listen(tx.clone(), worker_runtime.clone()));
 
     // continuously publish messages
 
@@ -84,7 +85,7 @@ fn main() {
 
 // a task that listens for new connections and spawns worker tasks to serve the
 // new clients
-async fn listen(tx: Sender<Message>, worker_runtime: Runtime) -> Result<(), std::io::Error> {
+async fn listen(tx: Sender<Message>, worker_runtime: Arc<Runtime>) -> Result<(), std::io::Error> {
     let listener = TcpListener::bind("0.0.0.0:12321").await?;
 
     loop {
