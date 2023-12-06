@@ -314,6 +314,7 @@ dependencies = [
 name = "blabber"
 version = "0.3.1"
 dependencies = [
+ "ahash",
  "broadcaster",
  "clap 4.4.11",
  "tokio",

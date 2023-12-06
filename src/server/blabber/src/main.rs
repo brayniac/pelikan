@@ -1,3 +1,4 @@
+use ahash::RandomState;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use std::time::Duration;
@@ -10,24 +11,39 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::runtime::Builder;
 
-#[derive(Clone)]
-pub struct Message {
-    timestamp: u64,
+static MIN_MESSAGE_LEN: u32 = 32;
+
+pub fn hasher() -> RandomState {
+    RandomState::with_seeds(
+        0xd5b96f9126d61cee,
+        0x50af85c9d1b6de70,
+        0xbd7bdf2fee6d15b2,
+        0x3dbe88bb183ac6f4,
+    )
 }
 
-impl Default for Message {
-    fn default() -> Self {
-        Self::new()
-    }
+#[derive(Clone)]
+pub struct Message {
+    data: Vec<u8>,
 }
 
 impl Message {
-    pub fn new() -> Self {
+    pub fn new(hash_builder: &RandomState, len: u32) -> Self {
         let now = SystemTime::now();
+
         let unix_ns = now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
 
+        let mut data = vec![0; len as usize];
+
+        data[0..4].copy_from_slice(&len.to_be_bytes());
+        data[8..16].copy_from_slice(&[0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]);
+        data[24..32].copy_from_slice(&unix_ns.to_be_bytes());
+
+        let checksum = hash_builder.hash_one(&data[8..len as usize]).to_be_bytes();
+        data[16..24].copy_from_slice(&checksum);
+
         Self {
-            timestamp: unix_ns,
+            data,
         }
     }
 }
@@ -46,11 +62,19 @@ pub struct Config {
 
     #[arg(long, default_value_t = 1)]
     publish_rate: usize,
+
+    #[arg(long, default_value_t = MIN_MESSAGE_LEN)]
+    message_len: u32,
 }
 
 fn main() {
     // load the configuration from cli args
     let config = Config::parse();
+
+    if config.message_len < MIN_MESSAGE_LEN {
+        eprintln!("message len: {} must be >= {MIN_MESSAGE_LEN}", config.message_len);
+        std::process::exit(1);
+    }
 
     // runtime for the listener
     let listener_runtime = Builder::new_multi_thread()
@@ -76,10 +100,12 @@ fn main() {
 
     let interval = Duration::from_secs(1) / config.publish_rate as u32;
 
+    let hash_builder = hasher();
+
     loop {
         std::thread::sleep(interval);
 
-        let _ = tx.send(Message::new());
+        let _ = tx.send(Message::new(&hash_builder, config.message_len));
     }
 }
 
@@ -101,7 +127,7 @@ async fn serve(mut socket: tokio::net::TcpStream, mut rx: Receiver<Message>) -> 
     loop {
         match rx.recv().await {
             Ok(message) => {
-                socket.write_all(&message.timestamp.to_be_bytes()).await?;
+                socket.write_all(&message.data).await?;
             }
             Err(RecvError::Lagged(_count)) => {
                 // do nothing if we lagged
