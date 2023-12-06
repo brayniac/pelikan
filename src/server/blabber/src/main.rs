@@ -61,7 +61,7 @@ pub struct Config {
     fanout: u8,
 
     #[arg(long, default_value_t = 1)]
-    publish_rate: usize,
+    publish_rate: u64,
 
     #[arg(long, default_value_t = MIN_MESSAGE_LEN)]
     message_len: u32,
@@ -98,14 +98,20 @@ fn main() {
 
     // continuously publish messages
 
-    let interval = Duration::from_secs(1) / config.publish_rate as u32;
-
     let hash_builder = hasher();
 
-    loop {
-        std::thread::sleep(interval);
+    let interval = Duration::from_secs(1).as_nanos() as u64 / config.publish_rate;
 
+    let now = SystemTime::now();
+    let offset_ns = now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
+    let mut next_period = SystemTime::UNIX_EPOCH + Duration::from_nanos((1 + (offset_ns / interval)) * interval);
+
+    loop {
+        while SystemTime::now() < next_period {
+            std::thread::sleep(Duration::from_micros(100));
+        }
         let _ = tx.send(Message::new(&hash_builder, config.message_len));
+        next_period += Duration::from_nanos(interval);
     }
 }
 
