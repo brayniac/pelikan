@@ -3,6 +3,10 @@ use broadcaster::Receiver;
 use broadcaster::RecvError;
 use broadcaster::Sender;
 use clap::Parser;
+use rand::distributions::Uniform;
+use rand::rngs::SmallRng;
+use rand::Rng;
+use rand::SeedableRng;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -49,7 +53,7 @@ impl Message {
     }
 }
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Clone, Copy)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {
     #[arg(long, default_value_t = 1)]
@@ -66,6 +70,9 @@ pub struct Config {
 
     #[arg(long, default_value_t = MIN_MESSAGE_LEN)]
     message_len: u32,
+
+    #[arg(long, default_value_t = 0)]
+    max_delay_us: u64,
 }
 
 fn main() {
@@ -100,7 +107,7 @@ fn main() {
     let tx = broadcaster::channel::<Message>(&worker_runtime, config.queue_depth, config.fanout);
 
     // start the listener
-    listener_runtime.spawn(listen(tx.clone(), worker_runtime.clone()));
+    listener_runtime.spawn(listen(config, tx.clone(), worker_runtime.clone()));
 
     // continuously publish messages
 
@@ -127,7 +134,11 @@ fn main() {
 
 // a task that listens for new connections and spawns worker tasks to serve the
 // new clients
-async fn listen(tx: Sender<Message>, worker_runtime: Arc<Runtime>) -> Result<(), std::io::Error> {
+async fn listen(
+    config: Config,
+    tx: Sender<Message>,
+    worker_runtime: Arc<Runtime>,
+) -> Result<(), std::io::Error> {
     let listener = TcpListener::bind("0.0.0.0:12321").await?;
 
     loop {
@@ -138,18 +149,40 @@ async fn listen(tx: Sender<Message>, worker_runtime: Arc<Runtime>) -> Result<(),
         }
 
         // spawn the worker task onto the worker runtime
-        worker_runtime.spawn(serve(socket, tx.subscribe()));
+        worker_runtime.spawn(serve(config, socket, tx.subscribe()));
     }
 }
 
 // a task that serves messages to a client
 async fn serve(
+    config: Config,
     mut socket: tokio::net::TcpStream,
     mut rx: Receiver<Message>,
 ) -> Result<(), std::io::Error> {
+    // create a uniform distribution for selecting a possible delay time
+    let delay = if config.max_delay_us == 0 {
+        None
+    } else {
+        Some(Uniform::from(0..config.max_delay_us))
+    };
+
+    // small fast PRNG for generating delays
+    let mut rng = SmallRng::from_entropy();
+
     loop {
         match rx.recv().await {
             Ok(message) => {
+                // apply random delay if configured
+                if let Some(delay) = delay {
+                    let delay = rng.sample(delay);
+
+                    // only delay if the delay is non-zero
+                    if delay > 0 {
+                        tokio::time::sleep(Duration::from_micros(delay)).await;
+                    }
+                }
+
+                // write to the socket
                 socket.write_all(&message.data).await?;
             }
             Err(RecvError::Lagged(_count)) => {
