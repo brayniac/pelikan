@@ -1,15 +1,15 @@
 use ahash::RandomState;
-use std::sync::Arc;
-use tokio::runtime::Runtime;
-use std::time::Duration;
-use broadcaster::RecvError;
-use clap::Parser;
-use std::time::SystemTime;
 use broadcaster::Receiver;
+use broadcaster::RecvError;
 use broadcaster::Sender;
+use clap::Parser;
+use std::sync::Arc;
+use std::time::Duration;
+use std::time::SystemTime;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::runtime::Builder;
+use tokio::runtime::Runtime;
 
 static MIN_MESSAGE_LEN: u32 = 32;
 
@@ -31,7 +31,10 @@ impl Message {
     pub fn new(hash_builder: &RandomState, len: u32) -> Self {
         let now = SystemTime::now();
 
-        let unix_ns = now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
+        let unix_ns = now
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
 
         let mut data = vec![0; len as usize];
 
@@ -42,9 +45,7 @@ impl Message {
         let checksum = hash_builder.hash_one(&data[8..len as usize]).to_be_bytes();
         data[16..24].copy_from_slice(&checksum);
 
-        Self {
-            data,
-        }
+        Self { data }
     }
 }
 
@@ -72,7 +73,10 @@ fn main() {
     let config = Config::parse();
 
     if config.message_len < MIN_MESSAGE_LEN {
-        eprintln!("message len: {} must be >= {MIN_MESSAGE_LEN}", config.message_len);
+        eprintln!(
+            "message len: {} must be >= {MIN_MESSAGE_LEN}",
+            config.message_len
+        );
         std::process::exit(1);
     }
 
@@ -84,11 +88,13 @@ fn main() {
         .expect("failed to initialize tokio runtime");
 
     // runtime for the workers and fanout
-    let worker_runtime = Arc::new(Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(config.threads)
-        .build()
-        .expect("failed to initialize tokio runtime"));
+    let worker_runtime = Arc::new(
+        Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(config.threads)
+            .build()
+            .expect("failed to initialize tokio runtime"),
+    );
 
     // start broadcaster using the worker runtime
     let tx = broadcaster::channel::<Message>(&worker_runtime, config.queue_depth, config.fanout);
@@ -103,8 +109,12 @@ fn main() {
     let interval = Duration::from_secs(1).as_nanos() as u64 / config.publish_rate;
 
     let now = SystemTime::now();
-    let offset_ns = now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() as u64;
-    let mut next_period = SystemTime::UNIX_EPOCH + Duration::from_nanos((1 + (offset_ns / interval)) * interval);
+    let offset_ns = now
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos() as u64;
+    let mut next_period =
+        SystemTime::UNIX_EPOCH + Duration::from_nanos((1 + (offset_ns / interval)) * interval);
 
     loop {
         while SystemTime::now() < next_period {
@@ -123,13 +133,20 @@ async fn listen(tx: Sender<Message>, worker_runtime: Arc<Runtime>) -> Result<(),
     loop {
         let (socket, _) = listener.accept().await?;
 
+        if socket.set_nodelay(true).is_err() {
+            eprintln!("couldn't set TCP_NODELAY. Dropping connection");
+        }
+
         // spawn the worker task onto the worker runtime
         worker_runtime.spawn(serve(socket, tx.subscribe()));
     }
 }
 
 // a task that serves messages to a client
-async fn serve(mut socket: tokio::net::TcpStream, mut rx: Receiver<Message>) -> Result<(), std::io::Error> {
+async fn serve(
+    mut socket: tokio::net::TcpStream,
+    mut rx: Receiver<Message>,
+) -> Result<(), std::io::Error> {
     loop {
         match rx.recv().await {
             Ok(message) => {
@@ -139,7 +156,10 @@ async fn serve(mut socket: tokio::net::TcpStream, mut rx: Receiver<Message>) -> 
                 // do nothing if we lagged
             }
             Err(_) => {
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, "queue stopped"));
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "queue stopped",
+                ));
             }
         }
     }
