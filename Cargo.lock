@@ -315,10 +315,14 @@ name = "blabber"
 version = "0.3.1"
 dependencies = [
  "ahash",
+ "backtrace",
  "broadcaster",
  "clap 4.4.11",
+ "logger",
  "rand",
+ "serde",
  "tokio",
+ "toml 0.8.2",
 ]
 
 [[package]]
