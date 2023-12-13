@@ -117,3 +117,9 @@ impl Default for Debug {
 pub trait DebugConfig {
     fn debug(&self) -> &Debug;
 }
+
+impl DebugConfig for Debug {
+    fn debug(&self) -> &Debug {
+        self
+    }
+}

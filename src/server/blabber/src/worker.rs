@@ -1,8 +1,9 @@
+use tokio::io::AsyncWriteExt;
 use crate::*;
 
 // a task that serves messages to a client
 pub async fn serve(
-    config: Config,
+    config: Arc<Config>,
     mut socket: tokio::net::TcpStream,
     mut rx: Receiver<Message>,
 ) -> Result<(), std::io::Error> {

@@ -14,6 +14,7 @@ ahash = { workspace = true }
 backtrace = { workspace = true }
 broadcaster = { git = "https://github.com/brayniac/broadcaster" }
 clap = { version = "4.4.7", features = ["derive"] }
+config = { path = "../../config" }
 logger = { path = "../../logger" }
 rand = { workspace = true, features = ["small_rng"] }
 serde = { workspace = true, features = ["derive"] }

@@ -1,6 +1,12 @@
 #[macro_use]
 extern crate logger;
 
+use logger::MultiLogBuilder;
+use logger::Stdout;
+use logger::File;
+use logger::Output;
+use logger::LogBuilder;
+use ::config::Debug;
 use ahash::RandomState;
 use backtrace::Backtrace;
 use broadcaster::{Receiver, RecvError, Sender};
@@ -12,13 +18,14 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use tokio::io::AsyncWriteExt;
+// use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::runtime::{Builder, Runtime};
 
 mod config;
 mod listener;
 mod message;
+mod publisher;
 mod worker;
 
 use config::Config;
@@ -68,10 +75,34 @@ fn main() {
         Default::default()
     };
 
-    if config.message_len < MIN_MESSAGE_LEN {
+    // initialize logging
+    let debug_output: Box<dyn Output> = if let Some(file) = config.debug.log_file() {
+        let backup = config.debug.log_backup().unwrap_or(format!("{file}.old"));
+        Box::new(
+            File::new(&file, &backup, config.debug.log_max_size())
+                .expect("failed to open debug log file"),
+        )
+    } else {
+        Box::new(Stdout::new())
+    };
+
+    let debug_log = LogBuilder::new()
+        .output(debug_output)
+        .log_queue_depth(config.debug.log_queue_depth())
+        .single_message_size(config.debug.log_single_message_size())
+        .build()
+        .expect("failed to initialize debug log");
+
+    let mut log_drain = MultiLogBuilder::new()
+        .level_filter(config.debug.log_level().to_level_filter())
+        .default(debug_log)
+        .build()
+        .start();
+
+    if config.publisher.message_len < MIN_MESSAGE_LEN {
         eprintln!(
             "message len: {} must be >= {MIN_MESSAGE_LEN}",
-            config.message_len
+            config.publisher.message_len
         );
         std::process::exit(1);
     }
@@ -96,27 +127,9 @@ fn main() {
     let tx = broadcaster::channel::<Message>(&worker_runtime, config.queue_depth, config.fanout);
 
     // start the listener
-    listener_runtime.spawn(listener::listen(config, tx.clone(), worker_runtime.clone()));
+    listener_runtime.spawn(listener::listen(Arc::new(config.clone()), tx.clone(), worker_runtime.clone()));
 
-    // continuously publish messages
+    listener_runtime.spawn_blocking(move || { loop { let _ = log_drain.flush(); } });
 
-    let hash_builder = hasher();
-
-    let interval = Duration::from_secs(1).as_nanos() as u64 / config.publish_rate;
-
-    let now = SystemTime::now();
-    let offset_ns = now
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos() as u64;
-    let mut next_period =
-        SystemTime::UNIX_EPOCH + Duration::from_nanos((1 + (offset_ns / interval)) * interval);
-
-    loop {
-        while SystemTime::now() < next_period {
-            std::thread::sleep(Duration::from_micros(100));
-        }
-        let _ = tx.send(Message::new(&hash_builder, config.message_len));
-        next_period += Duration::from_nanos(interval);
-    }
+    publisher::publish(config, tx);
 }

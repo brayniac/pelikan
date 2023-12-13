@@ -318,6 +318,7 @@ dependencies = [
  "backtrace",
  "broadcaster",
  "clap 4.4.11",
+ "config",
  "logger",
  "rand",
  "serde",

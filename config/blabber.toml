@@ -1,0 +1,29 @@
+# set the number of worker threads
+threads = 1
+# set the queue depth
+queue_depth = 128
+# set the queue fanout factor
+fanout = 7
+# set the max delay before writing the message to a client
+max_delay_us = 0
+
+[server]
+# set the listen address
+addr = "0.0.0.0:12321"
+
+[publisher]
+# set the publish rate in messages per second
+rate = 1
+# set the message size in bytes, must be at least 32B
+message_len = 32
+
+[debug]
+# choose from: error, warn, info, debug, trace
+log_level = "info"
+# optionally, log to the file below instead of standard out
+# log_file = "segcache.log"
+# backup file name for use with log rotation
+log_backup = "segcache.log.old"
+# trigger log rotation when the file grows beyond this size (in bytes). Set this
+# option to '0' to disable log rotation.
+log_max_size = 1073741824

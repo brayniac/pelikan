@@ -1,4 +1,9 @@
+use std::net::SocketAddr;
 use crate::*;
+
+fn default_server_addr() -> SocketAddr {
+    "0.0.0.0:12321".parse().unwrap()
+}
 
 fn default_threads() -> usize {
     1
@@ -26,8 +31,17 @@ fn default_max_delay_us() -> u64 {
 
 // #[derive(Parser, Debug, Clone, Copy)]
 // #[command(author, version, about, long_about = None)]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
+    #[serde(default)]
+    pub server: ServerConfig,
+
+    #[serde(default)]
+    pub publisher: PublisherConfig,
+
+    #[serde(default)]
+    pub debug: Debug,
+
     #[serde(default = "default_threads")]
     pub threads: usize,
 
@@ -37,24 +51,51 @@ pub struct Config {
     #[serde(default = "default_fanout")]
     pub fanout: u8,
 
+    #[serde(default = "default_max_delay_us")]
+    pub max_delay_us: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct ServerConfig {
+    #[serde(default = "default_server_addr")]
+    pub addr: SocketAddr,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            addr: default_server_addr(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct PublisherConfig {
     #[serde(default = "default_publish_rate")]
-    pub publish_rate: u64,
+    pub rate: u64,
 
     #[serde(default = "default_message_len")]
     pub message_len: u32,
+}
 
-    #[serde(default = "default_max_delay_us")]
-    pub max_delay_us: u64,
+impl Default for PublisherConfig {
+    fn default() -> Self {
+        Self {
+            rate: default_publish_rate(),
+            message_len: default_message_len(),
+        }
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
+            server: Default::default(),
+            publisher: Default::default(),
+            debug: Default::default(),
             threads: default_threads(),
             queue_depth: default_queue_depth(),
             fanout: default_fanout(),
-            publish_rate: default_publish_rate(),
-            message_len: default_message_len(),
             max_delay_us: default_max_delay_us(),
         }
     }
