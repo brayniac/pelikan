@@ -39,6 +39,7 @@ logger = { path = "../../logger" }
 metriken = { workspace = true }
 protocol-ping = { path = "../../protocol/ping", features = ["server"] }
 server = { path = "../../core/server" }
+rand_distr = "*"
 
 [dev-dependencies]
 criterion = "0.3"

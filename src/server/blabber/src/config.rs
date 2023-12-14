@@ -29,6 +29,22 @@ fn default_max_delay_us() -> u64 {
     0
 }
 
+#[derive(Clone)]
+#[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Delay {
+    Uniform,
+    Pareto,
+    Poisson,
+}
+
+impl Default for Delay {
+    fn default() -> Self {
+        Self::Uniform
+    }
+}
+
 // #[derive(Parser, Debug, Clone, Copy)]
 // #[command(author, version, about, long_about = None)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,6 +69,9 @@ pub struct Config {
 
     #[serde(default = "default_max_delay_us")]
     pub max_delay_us: u64,
+
+    #[serde(default)]
+    pub delay: Delay,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -97,6 +116,7 @@ impl Default for Config {
             queue_depth: default_queue_depth(),
             fanout: default_fanout(),
             max_delay_us: default_max_delay_us(),
+            delay: Default::default(),
         }
     }
 }
