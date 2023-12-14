@@ -19,7 +19,7 @@ impl DelayDistr {
                 rng.sample(distr) as u64 - 1
             }
             Self::Poisson(distr) => {
-                rng.sample(distr) as u64
+                rng.sample(distr) as u64 - 1
             }
         }
     }
