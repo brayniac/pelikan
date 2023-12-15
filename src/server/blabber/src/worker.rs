@@ -1,12 +1,12 @@
 use crate::config::Delay;
 use tokio::io::AsyncWriteExt;
 use crate::*;
-use rand_distr::{Pareto, Poisson, Zipf};
+use rand_distr::{Zipf};
 
 pub enum DelayDistr {
     Uniform(Uniform<f64>),
-    Pareto(Pareto<f64>),
-    Poisson(Poisson<f64>),
+    // Pareto(Pareto<f64>),
+    // Poisson(Poisson<f64>),
     Zipf(Zipf<f64>)
 }
 
@@ -36,7 +36,7 @@ pub async fn serve(
     mut rx: Receiver<Message>,
 ) -> Result<(), std::io::Error> {
     // create a uniform distribution for selecting a possible delay time
-    let delay: Option<DelayDistr> = if config.max_delay_us == 0 {
+    let delay: Option<DelayDistr> = if config.max_delay == 0 {
         None
     } else {
         match config.delay {
