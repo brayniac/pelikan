@@ -4,8 +4,10 @@ threads = 1
 queue_depth = 128
 # set the queue fanout factor
 fanout = 7
-# set the max delay before writing the message to a client
-max_delay_us = 0
+# set the max delay in milliseconds before writing the message to a client
+max_delay = 0
+# set the delay generation strategy: "uniform", "zipf"
+delay = "uniform"
 
 [server]
 # set the listen address

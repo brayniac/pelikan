@@ -1,26 +1,30 @@
 use crate::config::Delay;
 use tokio::io::AsyncWriteExt;
 use crate::*;
-use rand_distr::{Pareto, Poisson};
+use rand_distr::{Pareto, Poisson, Zipf};
 
 pub enum DelayDistr {
     Uniform(Uniform<f64>),
     Pareto(Pareto<f64>),
     Poisson(Poisson<f64>),
+    Zipf(Zipf<f64>)
 }
 
 impl DelayDistr {
-    pub fn sample(&self, rng: &mut SmallRng) -> u64 {
+    pub fn sample(&self, rng: &mut SmallRng) -> Duration {
         match self {
             Self::Uniform(distr) => {
-                rng.sample(distr) as u64
+                Duration::from_millis(rng.sample(distr) as u64)
             }
-            Self::Pareto(distr) => {
-                rng.sample(distr) as u64 - 1
+            Self::Zipf(distr) => {
+                Duration::from_millis((rng.sample(distr) as u64).saturating_sub(1))
             }
-            Self::Poisson(distr) => {
-                rng.sample(distr) as u64 - 1
-            }
+            // Self::Pareto(distr) => {
+            //     Duration::from_millis(rng.sample(distr) as u64 - 1)
+            // }
+            // Self::Poisson(distr) => {
+            //     Duration::from_millis(rng.sample(distr) as u64)
+            // }
         }
     }
 }
@@ -37,14 +41,17 @@ pub async fn serve(
     } else {
         match config.delay {
             Delay::Uniform => {
-                Some(DelayDistr::Uniform(Uniform::from(0.0..(config.max_delay_us as f64))))
+                Some(DelayDistr::Uniform(Uniform::from(0.0..(config.max_delay as f64))))
             }
-            Delay::Pareto => {
-                Some(DelayDistr::Pareto(Pareto::new(1.0, 2.0).unwrap()))
+            Delay::Zipf => {
+                Some(DelayDistr::Zipf(Zipf::new(config.max_delay + 1, 1.0).unwrap()))
             }
-            Delay::Poisson => {
-                Some(DelayDistr::Poisson(Poisson::new(1.0).unwrap()))
-            }
+            // Delay::Pareto => {
+            //     Some(DelayDistr::Pareto(Pareto::new(1.0, 2.0).unwrap()))
+            // }
+            // Delay::Poisson => {
+            //     Some(DelayDistr::Poisson(Poisson::new(2.0).unwrap()))
+            // }
         }
     };
 
@@ -58,9 +65,11 @@ pub async fn serve(
                 if let Some(ref delay) = delay {
                     let delay = delay.sample(&mut rng);
 
+                    println!("delay: {}", delay.as_millis());
+
                     // only delay if the delay is non-zero
-                    if delay > 0 {
-                        tokio::time::sleep(Duration::from_micros(delay)).await;
+                    if delay.as_millis() > 0 {
+                        tokio::time::sleep(delay).await;
                     }
                 }
 

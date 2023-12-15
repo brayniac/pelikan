@@ -25,7 +25,7 @@ fn default_message_len() -> u32 {
     MIN_MESSAGE_LEN
 }
 
-fn default_max_delay_us() -> u64 {
+fn default_max_delay() -> u64 {
     0
 }
 
@@ -35,8 +35,9 @@ fn default_max_delay_us() -> u64 {
 #[serde(rename_all = "snake_case")]
 pub enum Delay {
     Uniform,
-    Pareto,
-    Poisson,
+    // Pareto,
+    // Poisson,
+    Zipf,
 }
 
 impl Default for Delay {
@@ -67,8 +68,8 @@ pub struct Config {
     #[serde(default = "default_fanout")]
     pub fanout: u8,
 
-    #[serde(default = "default_max_delay_us")]
-    pub max_delay_us: u64,
+    #[serde(default = "default_max_delay")]
+    pub max_delay: u64,
 
     #[serde(default)]
     pub delay: Delay,
@@ -115,7 +116,7 @@ impl Default for Config {
             threads: default_threads(),
             queue_depth: default_queue_depth(),
             fanout: default_fanout(),
-            max_delay_us: default_max_delay_us(),
+            max_delay: default_max_delay(),
             delay: Default::default(),
         }
     }
