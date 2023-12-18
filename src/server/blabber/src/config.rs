@@ -49,6 +49,7 @@ impl Default for Delay {
 // #[derive(Parser, Debug, Clone, Copy)]
 // #[command(author, version, about, long_about = None)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
     pub server: ServerConfig,
@@ -76,6 +77,7 @@ pub struct Config {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(deny_unknown_fields)]
 pub struct ServerConfig {
     #[serde(default = "default_server_addr")]
     pub addr: SocketAddr,
@@ -90,6 +92,7 @@ impl Default for ServerConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[serde(deny_unknown_fields)]
 pub struct PublisherConfig {
     #[serde(default = "default_publish_rate")]
     pub rate: u64,

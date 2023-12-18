@@ -5,8 +5,6 @@ use rand_distr::{Zipf};
 
 pub enum DelayDistr {
     Uniform(Uniform<f64>),
-    // Pareto(Pareto<f64>),
-    // Poisson(Poisson<f64>),
     Zipf(Zipf<f64>)
 }
 
@@ -19,12 +17,6 @@ impl DelayDistr {
             Self::Zipf(distr) => {
                 Duration::from_millis((rng.sample(distr) as u64).saturating_sub(1))
             }
-            // Self::Pareto(distr) => {
-            //     Duration::from_millis(rng.sample(distr) as u64 - 1)
-            // }
-            // Self::Poisson(distr) => {
-            //     Duration::from_millis(rng.sample(distr) as u64)
-            // }
         }
     }
 }
@@ -46,12 +38,6 @@ pub async fn serve(
             Delay::Zipf => {
                 Some(DelayDistr::Zipf(Zipf::new(config.max_delay + 1, 1.0).unwrap()))
             }
-            // Delay::Pareto => {
-            //     Some(DelayDistr::Pareto(Pareto::new(1.0, 2.0).unwrap()))
-            // }
-            // Delay::Poisson => {
-            //     Some(DelayDistr::Poisson(Poisson::new(2.0).unwrap()))
-            // }
         }
     };
 
@@ -64,8 +50,6 @@ pub async fn serve(
                 // apply random delay if configured
                 if let Some(ref delay) = delay {
                     let delay = delay.sample(&mut rng);
-
-                    println!("delay: {}", delay.as_millis());
 
                     // only delay if the delay is non-zero
                     if delay.as_millis() > 0 {
