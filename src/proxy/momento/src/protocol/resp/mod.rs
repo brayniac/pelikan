@@ -7,6 +7,7 @@ use std::future::Future;
 use momento::response::MomentoError;
 pub use protocol_resp::{Request, RequestParser};
 
+mod del;
 mod get;
 mod hdel;
 mod hexists;
@@ -49,6 +50,7 @@ pub use self::sismember::*;
 pub use self::smembers::*;
 pub use self::srem::*;
 pub use self::sunion::*;
+pub use del::*;
 pub use get::*;
 pub use hdel::*;
 pub use hexists::*;
@@ -64,24 +66,12 @@ pub use sadd::*;
 pub use set::*;
 
 pub(crate) fn momento_error_to_resp_error(buf: &mut Vec<u8>, command: &str, error: MomentoError) {
-    use crate::{BACKEND_EX, BACKEND_EX_RATE_LIMITED, BACKEND_EX_TIMEOUT};
+    use crate::BACKEND_EX;
 
     BACKEND_EX.increment();
 
-    match error {
-        MomentoError::LimitExceeded(_) => {
-            BACKEND_EX_RATE_LIMITED.increment();
-            buf.extend_from_slice(b"-ERR ratelimit exceeded\r\n");
-        }
-        MomentoError::Timeout(_) => {
-            BACKEND_EX_TIMEOUT.increment();
-            buf.extend_from_slice(b"-ERR backend timeout\r\n");
-        }
-        e => {
-            error!("error for {}: {}", command, e);
-            buf.extend_from_slice(b"-ERR backend error\r\n");
-        }
-    }
+    error!("backend error for {command}: {error}");
+    buf.extend_from_slice(format!("-ERR backend error: {error}\r\n").as_bytes());
 }
 
 async fn update_method_metrics<T, E>(

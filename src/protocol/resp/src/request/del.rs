@@ -7,18 +7,18 @@ use std::sync::Arc;
 
 use super::*;
 
-#[metric(name = "sdiff")]
-pub static SDIFF: Counter = Counter::new();
+#[metric(name = "del")]
+pub static DEL: Counter = Counter::new();
 
-#[metric(name = "sdiff_ex")]
-pub static SDIFF_EX: Counter = Counter::new();
+#[metric(name = "del_ex")]
+pub static DEL_EX: Counter = Counter::new();
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct SetDiff {
+pub struct Del {
     keys: Vec<Arc<[u8]>>,
 }
 
-impl TryFrom<Message> for SetDiff {
+impl TryFrom<Message> for Del {
     type Error = Error;
 
     fn try_from(value: Message) -> Result<Self, Self::Error> {
@@ -46,7 +46,7 @@ impl TryFrom<Message> for SetDiff {
     }
 }
 
-impl SetDiff {
+impl Del {
     pub fn new(keys: &[&[u8]]) -> Self {
         Self {
             keys: keys.iter().copied().map(From::from).collect(),
@@ -58,17 +58,17 @@ impl SetDiff {
     }
 }
 
-impl From<&SetDiff> for Message {
-    fn from(value: &SetDiff) -> Self {
+impl From<&Del> for Message {
+    fn from(value: &Del) -> Self {
         let mut vals = Vec::with_capacity(value.keys().len() + 1);
-        vals.push(Message::bulk_string(b"SDIFF"));
+        vals.push(Message::bulk_string(b"DEL"));
         vals.extend(value.keys().iter().map(|v| Message::bulk_string(v)));
 
         Message::Array(Array { inner: Some(vals) })
     }
 }
 
-impl Compose for SetDiff {
+impl Compose for Del {
     fn compose(&self, dst: &mut dyn BufMut) -> usize {
         Message::from(self).compose(dst)
     }
@@ -82,16 +82,16 @@ mod tests {
     fn parser() {
         let parser = RequestParser::new();
         assert_eq!(
-            parser.parse(b"sdiff k1 k2 k3\r\n").unwrap().into_inner(),
-            Request::SetDiff(SetDiff::new(&[b"k1", b"k2", b"k3"]))
+            parser.parse(b"DEL k1 k2 k3\r\n").unwrap().into_inner(),
+            Request::Del(Del::new(&[b"k1", b"k2", b"k3"]))
         );
 
         assert_eq!(
             parser
-                .parse(b"*3\r\n$5\r\nsdiff\r\n$2\r\nk1\r\n$2\r\nk2\r\n")
+                .parse(b"*3\r\n$3\r\nDEL\r\n$2\r\nk1\r\n$2\r\nk2\r\n")
                 .unwrap()
                 .into_inner(),
-            Request::SetDiff(SetDiff::new(&[b"k1", b"k2"]))
+            Request::Del(Del::new(&[b"k1", b"k2"]))
         );
     }
 }

@@ -4,13 +4,13 @@
 
 use std::time::Duration;
 
-use momento::response::MomentoDictionaryFetchStatus;
+use momento::response::DictionaryFetch;
 use momento::SimpleCacheClient;
 use protocol_resp::{HashKeys, HKEYS, HKEYS_EX, HKEYS_HIT, HKEYS_MISS};
 
 use crate::error::ProxyResult;
 use crate::klog::{klog_1, Status};
-use crate::BACKEND_EX;
+use crate::ProxyError;
 
 use super::update_method_metrics;
 
@@ -21,44 +21,41 @@ pub async fn hkeys(
     req: &HashKeys,
 ) -> ProxyResult {
     update_method_metrics(&HKEYS, &HKEYS_EX, async move {
-        let response = tokio::time::timeout(
+        let response = match tokio::time::timeout(
             Duration::from_millis(200),
             client.dictionary_fetch(cache_name, req.key()),
         )
-        .await??;
-
-        match response.result {
-            MomentoDictionaryFetchStatus::ERROR => {
-                // we got some error from
-                // the backend.
-                BACKEND_EX.increment();
-                HKEYS_EX.increment();
-                response_buf.extend_from_slice(b"-ERR backend error\r\n");
+        .await
+        {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => {
+                klog_1(&"hkeys", &req.key(), Status::ServerError, 0);
+                return Err(ProxyError::from(e));
             }
-            MomentoDictionaryFetchStatus::FOUND => {
-                if response.dictionary.is_none() {
-                    error!("error for hgetall: dictionary found but not provided in response");
-                    BACKEND_EX.increment();
-                    HKEYS_EX.increment();
-                    response_buf.extend_from_slice(b"-ERR backend error\r\n");
-                } else {
-                    HKEYS_HIT.increment();
-                    let dictionary = response.dictionary.as_ref().unwrap();
+            Err(e) => {
+                klog_1(&"hkeys", &req.key(), Status::Timeout, 0);
+                return Err(ProxyError::from(e));
+            }
+        };
 
-                    response_buf.extend_from_slice(format!("*{}\r\n", dictionary.len()).as_bytes());
+        match response {
+            DictionaryFetch::Hit { value } => {
+                HKEYS_HIT.increment();
+                let map: Vec<(Vec<u8>, Vec<u8>)> = value.collect_into();
 
-                    for field in dictionary.keys() {
-                        let field_header = format!("${}\r\n", field.len());
+                response_buf.extend_from_slice(format!("*{}\r\n", map.len()).as_bytes());
 
-                        response_buf.extend_from_slice(field_header.as_bytes());
-                        response_buf.extend_from_slice(field);
-                        response_buf.extend_from_slice(b"\r\n");
-                    }
+                for (field, _value) in map.iter() {
+                    let field_header = format!("${}\r\n", field.len());
 
-                    klog_1(&"hkeys", &req.key(), Status::Hit, response_buf.len());
+                    response_buf.extend_from_slice(field_header.as_bytes());
+                    response_buf.extend_from_slice(field);
+                    response_buf.extend_from_slice(b"\r\n");
                 }
+
+                klog_1(&"hkeys", &req.key(), Status::Hit, response_buf.len());
             }
-            MomentoDictionaryFetchStatus::MISSING => {
+            DictionaryFetch::Miss => {
                 HKEYS_MISS.increment();
                 klog_1(&"hkeys", &req.key(), Status::Miss, response_buf.len());
             }
