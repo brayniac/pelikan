@@ -1,16 +1,23 @@
 [package]
 name = "tokio-pingserver"
-version.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
-license.workspace = true
 build = "build.rs"
 
+version = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+
 [dependencies]
-tonic = "0.11"
+backtrace = { workspace = true }
+clap = { workspace = true }
+common = { path = "../../common" }
+config = { path = "../../config" }
+logger = { path = "../../logger" }
+metriken = { workspace = true }
 prost = "0.12"
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+tonic = "0.11"
 
 [build-dependencies]
 tonic-build = "0.11"
