@@ -119,5 +119,7 @@ fn main() {
         RUNNING.store(false, Ordering::Relaxed);
     });
 
-    std::thread::sleep(Duration::from_millis(250));
+    while RUNNING.load(Ordering::Relaxed) {
+        std::thread::sleep(Duration::from_millis(250));
+    }
 }
