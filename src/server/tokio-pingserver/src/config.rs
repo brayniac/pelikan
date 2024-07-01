@@ -1,6 +1,6 @@
-use std::io::Read;
 use config::{Admin, Debug, DebugConfig, Klog, KlogConfig, Server, Worker};
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Config {

@@ -1,13 +1,13 @@
 #[macro_use]
 extern crate logger;
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use std::net::TcpListener;
 use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use logger::configure_logging;
+use std::net::TcpListener;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Builder;
 use tokio::time::sleep;
 use tonic::{transport::Server as TonicServer, Request, Response, Status};
@@ -147,7 +147,7 @@ fn main() {
                                     }
                                     b => {
                                         println!("buffer: {:?}", b);
-                                        return
+                                        return;
                                     }
                                 }
                             }
