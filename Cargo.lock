@@ -2595,7 +2595,9 @@ dependencies = [
  "logger",
  "metriken",
  "prost",
+ "serde",
  "tokio",
+ "toml",
  "tonic 0.11.0",
  "tonic-build",
 ]

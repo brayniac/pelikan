@@ -1,13 +1,11 @@
 #[macro_use]
 extern crate logger;
 
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::net::TcpListener;
 use backtrace::Backtrace;
-use clap::Arg;
-use clap::Command;
-use config::PingserverConfig;
-use config::{ServerConfig, WorkerConfig};
-use core::sync::atomic::AtomicBool;
-use core::sync::atomic::Ordering;
+use clap::{Arg, Command};
+use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use logger::configure_logging;
 use tokio::runtime::Builder;
@@ -22,6 +20,9 @@ static RUNNING: AtomicBool = AtomicBool::new(true);
 pub mod pingpong {
     tonic::include_proto!("pingpong");
 }
+
+mod config;
+use crate::config::{Config, Protocol};
 
 #[derive(Debug, Default)]
 pub struct Server {}
@@ -55,7 +56,7 @@ fn main() {
     // load config from file
     let config = if let Some(file) = matches.get_one::<String>("CONFIG") {
         debug!("loading config: {}", file);
-        match PingserverConfig::load(file) {
+        match Config::load(file) {
             Ok(c) => c,
             Err(error) => {
                 eprintln!("error loading config file: {file}\n{error}");
@@ -86,7 +87,7 @@ fn main() {
     });
 
     let addr = config
-        .server()
+        .server
         .socket_addr()
         .map_err(|e| {
             error!("{}", e);
@@ -97,29 +98,88 @@ fn main() {
         })
         .unwrap();
 
-    // let addr = "0.0.0.0:12321".parse()?;
-    let greeter = Server::default();
-
     // initialize async runtime for the data plane
     let data_runtime = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(config.worker().threads())
+        .worker_threads(config.worker.threads())
         .build()
         .expect("failed to initialize tokio runtime");
 
-    data_runtime.spawn(async move {
-        if let Err(e) = TonicServer::builder()
-            .add_service(PingServer::new(greeter))
-            .serve(addr)
-            .await
-        {
-            error!("{e}");
-        };
+    match config.general.protocol {
+        Protocol::Ascii => {
+            let _guard = data_runtime.enter();
 
-        RUNNING.store(false, Ordering::Relaxed);
-    });
+            let listener = TcpListener::bind(addr).unwrap();
+            let listener = tokio::net::TcpListener::from_std(listener).unwrap();
 
-    while RUNNING.load(Ordering::Relaxed) {
-        std::thread::sleep(Duration::from_millis(250));
+            data_runtime.block_on(async move {
+                loop {
+                    if let Ok((mut socket, _)) = listener.accept().await {
+                        if socket.set_nodelay(true).is_err() {
+                            continue;
+                        }
+
+                        tokio::spawn(async move {
+                            let mut buf = vec![0; 1024];
+
+                            // In a loop, read data from the socket and write the data back.
+                            loop {
+                                buf.resize(1024, 0);
+
+                                match socket.read(&mut buf).await {
+                                    // socket closed
+                                    Ok(0) => {
+                                        return;
+                                    }
+                                    Ok(n) => {
+                                        buf.truncate(n);
+                                    }
+                                    Err(_) => {
+                                        return;
+                                    }
+                                };
+
+                                match buf.as_slice() {
+                                    b"PING\r\n" | b"ping\r\n" => {
+                                        if socket.write_all(b"PONG\r\n").await.is_err() {
+                                            return;
+                                        }
+                                    }
+                                    b => {
+                                        println!("buffer: {:?}", b);
+                                        return
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+
+            while RUNNING.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(250));
+            }
+
+            data_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
+        }
+        Protocol::Grpc => {
+            let greeter = Server::default();
+
+            data_runtime.spawn(async move {
+                if let Err(e) = TonicServer::builder()
+                    .add_service(PingServer::new(greeter))
+                    .serve(addr)
+                    .await
+                {
+                    error!("{e}");
+                };
+
+                RUNNING.store(false, Ordering::Relaxed);
+            });
+
+            while RUNNING.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(250));
+            }
+        }
     }
 }
