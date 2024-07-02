@@ -1,10 +1,12 @@
 use config::*;
+use core::time::Duration;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Config {
     pub general: General,
+    pub metrics: Metrics,
 
     // application modules
     #[serde(default)]
@@ -29,13 +31,28 @@ pub struct Config {
     pub sockio: Sockio,
     #[serde(default)]
     pub tcp: Tcp,
-
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct General {
     pub engine: Engine,
     pub protocol: Protocol,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Metrics {
+    #[serde(default = "interval")]
+    pub interval: String,
+}
+
+impl Metrics {
+    pub fn interval(&self) -> Duration {
+        self.interval.parse::<humantime::Duration>().unwrap().into()
+    }
+}
+
+fn interval() -> String {
+    "1s".into()
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -76,6 +93,19 @@ impl Config {
                 std::io::ErrorKind::Other,
                 "GRPC support requires using the Tokio engine",
             ));
+        }
+
+        match config.metrics.interval.parse::<humantime::Duration>() {
+            Ok(interval) => {
+                if Into::<Duration>::into(interval) < Duration::from_millis(10) {
+                    eprintln!("metrics interval cannot be less than 10ms");
+                    std::process::exit(1);
+                }
+            }
+            Err(e) => {
+                eprintln!("metrics interval is not valid: {e}");
+                std::process::exit(1);
+            }
         }
 
         Ok(config)
