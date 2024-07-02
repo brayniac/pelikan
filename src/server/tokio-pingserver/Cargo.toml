@@ -13,10 +13,13 @@ backtrace = { workspace = true }
 clap = { workspace = true }
 common = { path = "../../common" }
 config = { path = "../../config" }
+entrystore = { path = "../../entrystore" }
 logger = { path = "../../logger" }
 metriken = { workspace = true }
 prost = "0.12"
+protocol-ping = { path = "../../protocol/ping", features = ["server"] }
 serde = { workspace = true, features = ["derive"] }
+server = { path = "../../core/server" }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 toml = { workspace = true }
 tonic = "0.11"

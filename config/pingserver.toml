@@ -1,5 +1,10 @@
 daemonize = false
 
+# Used by the tokio-pingserver only
+[general]
+engine = "mio"
+protocol = "ascii"
+
 [admin]
 # interfaces listening on
 host = "0.0.0.0"

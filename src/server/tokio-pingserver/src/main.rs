@@ -1,6 +1,13 @@
 #[macro_use]
 extern crate logger;
 
+use protocol_ping::Response;
+use protocol_ping::Request;
+use server::ProcessBuilder;
+use entrystore::Noop;
+use protocol_ping::RequestParser;
+use logger::Drain;
+use crate::config::Engine;
 use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -10,7 +17,7 @@ use std::net::TcpListener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::runtime::Builder;
 use tokio::time::sleep;
-use tonic::{transport::Server as TonicServer, Request, Response, Status};
+use tonic::{transport::Server as TonicServer, Request as TonicRequest, Response as TonicResponse, Status as TonicStatus};
 
 use pingpong::ping_server::{Ping, PingServer};
 use pingpong::{PingRequest, PongResponse};
@@ -29,10 +36,13 @@ pub struct Server {}
 
 #[tonic::async_trait]
 impl Ping for Server {
-    async fn ping(&self, _request: Request<PingRequest>) -> Result<Response<PongResponse>, Status> {
-        Ok(Response::new(PongResponse {}))
+    async fn ping(&self, _request: TonicRequest<PingRequest>) -> Result<TonicResponse<PongResponse>, TonicStatus> {
+        Ok(TonicResponse::new(PongResponse {}))
     }
 }
+
+type Parser = RequestParser;
+type Storage = Noop;
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
@@ -68,8 +78,46 @@ fn main() {
     };
 
     // initialize logging
-    let mut log = configure_logging(&config);
+    let log = configure_logging(&config);
 
+    // initialize metrics
+    common::metrics::init();
+
+    match config.general.engine {
+        Engine::Mio => {
+            let _ = mio(config, log).map_err(|e| {
+                eprintln!("error launching server: {e}");
+                std::process::exit(1)
+            });
+        }
+        Engine::Tokio => {
+            tokio(config, log)
+        }
+    }
+}
+
+fn mio(config: Config, log: Box<dyn Drain>) -> Result<(), std::io::Error> {
+    // initialize storage
+    let storage = Storage::new();
+
+    // initialize parser
+    let parser = Parser::new();
+
+    // initialize process
+    let process_builder = ProcessBuilder::<Parser, Request, Response, Storage>::new(
+        &config, log, parser, storage,
+    )?
+    .version(env!("CARGO_PKG_VERSION"));
+
+    // spawn threads
+    let process = process_builder.spawn();
+
+    process.wait();
+
+    Ok(())
+}
+
+fn tokio(config: Config, mut log: Box<dyn Drain>) {
     // initialize async runtime for control plane
     let control_runtime = Builder::new_multi_thread()
         .enable_all()
