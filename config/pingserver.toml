@@ -2,7 +2,7 @@ daemonize = false
 
 # Used by the tokio-pingserver only
 [general]
-engine = "mio"
+engine = "tokio"
 protocol = "ascii"
 
 [admin]
