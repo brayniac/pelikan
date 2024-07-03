@@ -199,11 +199,9 @@ pub fn run(config: Config, mut log: Box<dyn Drain>) {
             data_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
         }
         Protocol::Grpc => {
-            let greeter = Server::default();
-
             data_runtime.spawn(async move {
                 if let Err(e) = TonicServer::builder()
-                    .add_service(PingServer::new(greeter))
+                    .add_service(PingServer::new(Server::default()))
                     .serve(addr)
                     .await
                 {
