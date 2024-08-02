@@ -1,3 +1,4 @@
+use core::net::SocketAddr;
 use config::*;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
@@ -69,6 +70,7 @@ pub enum Protocol {
     #[default]
     Ascii,
     Grpc,
+    Http2,
 }
 
 impl Config {
@@ -110,7 +112,22 @@ impl Config {
 
         Ok(config)
     }
+
+    pub fn listen(&self) -> SocketAddr {
+        self
+            .server
+            .socket_addr()
+            .map_err(|e| {
+                error!("{}", e);
+                std::io::Error::new(std::io::ErrorKind::Other, "Bad listen address")
+            })
+            .map_err(|_| {
+                std::process::exit(1);
+            })
+            .unwrap()
+    }
 }
+
 impl AdminConfig for Config {
     fn admin(&self) -> &Admin {
         &self.admin
