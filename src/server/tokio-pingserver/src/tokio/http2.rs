@@ -35,7 +35,7 @@ pub async fn run(config: Arc<Config>) {
                                         content.extend_from_slice(&data);
                                         let _ = body.flow_control().release_capacity(data.len());
 
-                                        if let Ok(Some(_trailers)) = body.trailers().await {
+                                        if let Ok(_trailers) = body.trailers().await {
                                             let now: DateTime<Utc> = Utc::now();
 
                                             let response = http::response::Builder::new()
