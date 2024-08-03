@@ -39,52 +39,48 @@ pub async fn run(config: Arc<Config>) {
 
                                             content.extend_from_slice(&data);
                                             let _ = body.flow_control().release_capacity(data.len());
+                                        }
 
-                                            eprintln!("receiving trailers");
+                                        eprintln!("receiving trailers");
 
-                                            if !body.is_end_stream() {
-                                                if body.trailers().await.is_err() {
-                                                    eprintln!("couldn't read trailers");
-                                                    return;
-                                                } else {
-                                                    eprintln!("got trailers");
+                                        if body.trailers().await.is_err() {
+                                            eprintln!("couldn't read trailers");
+                                            return;
+                                        } else {
+                                            eprintln!("got trailers");
+                                        }
+
+                                        let now: DateTime<Utc> = Utc::now();
+
+                                        let response = http::response::Builder::new()
+                                            .status(200)
+                                            .version(Version::HTTP_2)
+                                            .header("content-type", "application/grpc")
+                                            .header("date", now.to_rfc2822())
+                                            .body(())
+                                            .unwrap();
+
+                                        let content = BytesMut::zeroed(5);
+
+                                        let mut trailers = HeaderMap::new();
+                                        trailers.append("grpc-status", 0.into());
+
+                                        eprintln!("sending response headers");
+
+                                        if let Ok(mut stream) = sender.send_response(response, false) {
+                                            eprintln!("sending response content");
+
+                                            if stream.send_data(content.into(), false).is_ok() {
+                                                eprintln!("sending response trailers");
+
+                                                if stream.send_trailers(trailers).is_err() {
+                                                    eprintln!("couldn't send response trailers");
                                                 }
                                             } else {
-                                                eprintln!("no trailers to get");
+                                                eprintln!("couldn't send response content");
                                             }
-
-                                            let now: DateTime<Utc> = Utc::now();
-
-                                            let response = http::response::Builder::new()
-                                                .status(200)
-                                                .version(Version::HTTP_2)
-                                                .header("content-type", "application/grpc")
-                                                .header("date", now.to_rfc2822())
-                                                .body(())
-                                                .unwrap();
-
-                                            let content = BytesMut::zeroed(5);
-
-                                            let mut trailers = HeaderMap::new();
-                                            trailers.append("grpc-status", 0.into());
-
-                                            eprintln!("sending response headers");
-
-                                            if let Ok(mut stream) = sender.send_response(response, false) {
-                                                eprintln!("sending response content");
-
-                                                if stream.send_data(content.into(), false).is_ok() {
-                                                    eprintln!("sending response trailers");
-
-                                                    if stream.send_trailers(trailers).is_err() {
-                                                        eprintln!("couldn't send response trailers");
-                                                    }
-                                                } else {
-                                                    eprintln!("couldn't send response content");
-                                                }
-                                            } else {
-                                                eprintln!("couldn't send response headers");
-                                            }
+                                        } else {
+                                            eprintln!("couldn't send response headers");
                                         }
                                     });
                                 }
