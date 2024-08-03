@@ -73,8 +73,6 @@ pub async fn run(config: Arc<Config>) {
                                     break;
                                 }
                                 None => {
-                                    eprintln!("yielding");
-                                    tokio::task::yield_now().await;
                                     continue;
                                 }
                             }
