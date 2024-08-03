@@ -27,6 +27,7 @@ pub async fn run(config: Arc<Config>) {
                                     let mut content = BytesMut::new();
                                     while let Some(data) = body.data().await {
                                         if data.is_err() {
+                                            eprintln!("couldn't read request body data");
                                             return;
                                         }
                                         
@@ -53,14 +54,23 @@ pub async fn run(config: Arc<Config>) {
 
                                             if let Ok(mut stream) = sender.send_response(response, false) {
                                                 if stream.send_data(content.into(), false).is_ok() {
-                                                    let _ = stream.send_trailers(trailers);
-                                                } 
+                                                    if stream.send_trailers(trailers).is_err() {
+                                                        eprintln!("couldn't send response trailers");
+                                                    }
+                                                } else {
+                                                    eprintln!("couldn't send response content");
+                                                }
+                                            } else {
+                                                eprintln!("couldn't send response headers");
                                             }
+                                        } else {
+                                            eprintln!("couldn't read trailers");
                                         }
                                     }
                                 });
                             }
-                            Some(Err(_e)) => {
+                            Some(Err(e)) => {
+                                eprintln!("error: {e}");
                                 break;
                             }
                             None => {
