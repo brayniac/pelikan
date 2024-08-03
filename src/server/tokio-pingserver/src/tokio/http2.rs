@@ -40,6 +40,8 @@ pub async fn run(config: Arc<Config>) {
                                             content.extend_from_slice(&data);
                                             let _ = body.flow_control().release_capacity(data.len());
 
+                                            eprintln!("receiving trailers");
+
                                             if let Ok(_trailers) = body.trailers().await {
                                                 eprintln!("got trailers");
 
