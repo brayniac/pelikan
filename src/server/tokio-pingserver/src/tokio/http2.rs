@@ -42,8 +42,8 @@ pub async fn run(config: Arc<Config>) {
 
                                             eprintln!("receiving trailers");
 
-                                            if !body.is_end_of_stream() {
-                                                if body.tailers().await.is_err() {
+                                            if !body.is_end_stream() {
+                                                if body.trailers().await.is_err() {
                                                     eprintln!("couldn't read trailers");
                                                     return;
                                                 } else {
