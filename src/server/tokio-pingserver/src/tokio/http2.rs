@@ -24,7 +24,12 @@ pub async fn run(config: Arc<Config>) {
                                         let (_parts, mut body) = request.into_parts();
 
                                         let mut content = BytesMut::new();
+
+                                        eprintln!("receiving body");
+
                                         while let Some(data) = body.data().await {
+                                            eprintln!("got body chunk");
+
                                             if data.is_err() {
                                                 eprintln!("couldn't read request body data");
                                                 return;
@@ -36,6 +41,8 @@ pub async fn run(config: Arc<Config>) {
                                             let _ = body.flow_control().release_capacity(data.len());
 
                                             if let Ok(_trailers) = body.trailers().await {
+                                                eprintln!("got trailers");
+
                                                 let now: DateTime<Utc> = Utc::now();
 
                                                 let response = http::response::Builder::new()
@@ -51,8 +58,14 @@ pub async fn run(config: Arc<Config>) {
                                                 let mut trailers = HeaderMap::new();
                                                 trailers.append("grpc-status", 0.into());
 
+                                                eprintln!("sending response headers");
+
                                                 if let Ok(mut stream) = sender.send_response(response, false) {
+                                                    eprintln!("sending response content");
+
                                                     if stream.send_data(content.into(), false).is_ok() {
+                                                        eprintln!("sending response trailers");
+
                                                         if stream.send_trailers(trailers).is_err() {
                                                             eprintln!("couldn't send response trailers");
                                                         }
