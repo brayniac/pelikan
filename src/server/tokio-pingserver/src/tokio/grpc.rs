@@ -1,5 +1,5 @@
 use crate::tokio::RUNNING;
-use core::sync::atomic::{Ordering};
+use core::sync::atomic::Ordering;
 use std::sync::Arc;
 use tonic::transport::Server as TonicServer;
 use tonic::{Request as TonicRequest, Response as TonicResponse, Status as TonicStatus};
@@ -11,7 +11,7 @@ pub mod pingpong {
     tonic::include_proto!("pingpong");
 }
 
-use crate::config::{Config};
+use crate::config::Config;
 
 #[derive(Debug, Default)]
 pub struct Server {}

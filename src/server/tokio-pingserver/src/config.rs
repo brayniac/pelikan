@@ -1,5 +1,5 @@
-use core::net::SocketAddr;
 use config::*;
+use core::net::SocketAddr;
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
@@ -114,8 +114,7 @@ impl Config {
     }
 
     pub fn listen(&self) -> SocketAddr {
-        self
-            .server
+        self.server
             .socket_addr()
             .map_err(|e| {
                 error!("{}", e);

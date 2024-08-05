@@ -4,10 +4,9 @@ use protocol_ping::{Compose, Parse, Request, Response};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
 use std::io::ErrorKind;
-use tokio::net::TcpListener;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
+use tokio::net::TcpListener;
 
 pub async fn run(config: Arc<Config>) {
     let listener = std::net::TcpListener::bind(config.listen()).unwrap();
