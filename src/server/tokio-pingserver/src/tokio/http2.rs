@@ -1,3 +1,4 @@
+use http::HeaderValue;
 use crate::Config;
 use bytes::BytesMut;
 use chrono::Utc;
@@ -48,12 +49,15 @@ pub async fn run(config: Arc<Config>) {
                                             return;
                                         }
 
+                                        let mut date = HeaderValue::from_str(&Utc::now().to_rfc2822()).unwrap();
+                                        date.set_sensitive(true);
+
                                         // build our response
                                         let response = http::response::Builder::new()
                                             .status(200)
                                             .version(Version::HTTP_2)
                                             .header("content-type", "application/grpc")
-                                            .header("date", Utc::now().to_rfc2822())
+                                            .header("date", date)
                                             .body(())
                                             .unwrap();
 
