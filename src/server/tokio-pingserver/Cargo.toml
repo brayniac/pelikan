@@ -16,24 +16,24 @@ common = { path = "../../common" }
 config = { path = "../../config" }
 entrystore = { path = "../../entrystore" }
 humantime = "2.1.0"
-h2 = "0.4.0"
+h2 = "0.4.3"
 http = "1.1.0"
 http-body-util = "0.1.2"
 hyper = { version = "1.4.0", features = ["http1", "http2", "server"] }
 logger = { path = "../../logger" }
 metriken = { workspace = true }
 pin-project = "1.1.5"
-prost = "0.12"
+prost = "0.13"
 protocol-ping = { path = "../../protocol/ping", features = ["server"] }
 serde = { workspace = true, features = ["derive"] }
 server = { path = "../../core/server" }
 session = { path = "../../session" }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 toml = { workspace = true }
-tonic = { version = "0.11" }
+tonic = { version = "0.12" }
 warp = "0.3.6"
 chrono = "0.4.38"
 # mimalloc = "0.1.43"
 
 [build-dependencies]
-tonic-build = "0.11"
+tonic-build = "0.12"
