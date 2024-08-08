@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate logger;
 
-use mimalloc::MiMalloc;
+// use mimalloc::MiMalloc;
 
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+// #[global_allocator]
+// static GLOBAL: MiMalloc = MiMalloc;
 
 use crate::config::{Config, Engine};
 use backtrace::Backtrace;
