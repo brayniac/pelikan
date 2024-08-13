@@ -33,6 +33,17 @@ toml = { workspace = true }
 tonic = { version = "0.12" }
 warp = "0.3.6"
 chrono = "0.4.38"
+quinn = "0.11.2"
+rustls = { version = "0.23.11", default-features = false, features = [
+    "logging",
+    "ring",
+    "std",
+] }
+rustls-native-certs = "0.7.1"
+h3 = "0.0.6"
+h3-quinn = "0.0.7"
+
+
 # mimalloc = "0.1.43"
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]

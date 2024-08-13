@@ -11,6 +11,7 @@ mod admin;
 mod ascii;
 mod grpc;
 mod http2;
+mod http3;
 mod metrics;
 
 static METRICS_SNAPSHOT: Lazy<Arc<RwLock<metrics::MetricsSnapshot>>> =
@@ -75,6 +76,9 @@ pub fn run(config: Config, mut log: Box<dyn Drain>) {
         }
         Protocol::Http2 => {
             data_runtime.spawn(async move { http2::run(config).await });
+        }
+        Protocol::Http3 => {
+            data_runtime.spawn(async move { http3::run(config).await });
         }
     }
 

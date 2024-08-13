@@ -71,6 +71,7 @@ pub enum Protocol {
     Ascii,
     Grpc,
     Http2,
+    Http3,
 }
 
 impl Config {
