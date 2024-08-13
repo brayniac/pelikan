@@ -1076,7 +1076,7 @@ dependencies = [
 [[package]]
 name = "h2"
 version = "0.4.5"
-source = "git+https://github.com/brayniac/h2?branch=perf-optimized#6208468cbbc922375af0907ec59c97842d3f8d77"
+source = "git+https://github.com/brayniac/h2?branch=perf-optimized#3cf8125c22fc3c362cd582683b6d9be99548a175"
 dependencies = [
  "atomic-waker",
  "bytes",
