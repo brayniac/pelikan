@@ -1,8 +1,8 @@
-use http::HeaderValue;
 use crate::Config;
 use bytes::BytesMut;
 use chrono::Utc;
 use http::HeaderMap;
+use http::HeaderValue;
 use http::Version;
 use session::REQUEST_LATENCY;
 use std::sync::Arc;
@@ -49,7 +49,9 @@ pub async fn run(config: Arc<Config>) {
                                             return;
                                         }
 
-                                        let mut date = HeaderValue::from_str(&Utc::now().to_rfc2822()).unwrap();
+                                        let mut date =
+                                            HeaderValue::from_str(&Utc::now().to_rfc2822())
+                                                .unwrap();
                                         date.set_sensitive(true);
 
                                         // build our response
