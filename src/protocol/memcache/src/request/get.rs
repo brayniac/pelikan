@@ -20,6 +20,12 @@ impl Get {
     pub fn keys(&self) -> &[Box<[u8]>] {
         self.keys.as_ref()
     }
+
+    /// Consumes the Get request and returns its inner fields.
+    /// This allows callers to take ownership of the keys without copying.
+    pub fn into_inner(self) -> (bool, bool, Option<u32>, Box<[Box<[u8]>]>) {
+        (self.key, self.cas, self.opaque, self.keys)
+    }
 }
 
 impl Klog for Get {

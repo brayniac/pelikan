@@ -18,6 +18,12 @@ impl Values {
     pub fn values(&self) -> &[Value] {
         &self.values
     }
+
+    /// Consumes the Values and returns the inner boxed slice of Value items.
+    /// This allows callers to take ownership without copying.
+    pub fn into_inner(self) -> Box<[Value]> {
+        self.values
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -58,6 +64,12 @@ impl Value {
 
     pub fn value(&self) -> Option<&[u8]> {
         self.data.as_ref().map(|v| v.as_ref())
+    }
+
+    /// Consumes the Value and returns its inner fields.
+    /// This allows callers to take ownership of the data without copying.
+    pub fn into_inner(self) -> (Box<[u8]>, u32, Option<u64>, Option<Box<[u8]>>) {
+        (self.key, self.flags, self.cas, self.data)
     }
 }
 

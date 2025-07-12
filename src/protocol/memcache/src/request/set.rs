@@ -34,6 +34,12 @@ impl Set {
     pub fn noreply(&self) -> bool {
         self.noreply
     }
+
+    /// Consumes the Set request and returns its inner fields.
+    /// This allows callers to take ownership of the key and value without copying.
+    pub fn into_inner(self) -> (Box<[u8]>, Box<[u8]>, u32, Ttl, bool, Option<u32>) {
+        (self.key, self.value, self.flags, self.ttl, self.noreply, self.opaque)
+    }
 }
 
 impl Klog for Set {
