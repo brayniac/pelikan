@@ -41,7 +41,15 @@ impl BinaryProtocol {
 
                     let (input, value) = take(header.total_body_len as usize - 4)(input)?;
 
-                    Ok((input, Response::found(request.keys[0].clone(), flags, None, value.to_vec().into())))
+                    Ok((
+                        input,
+                        Response::found(
+                            request.keys[0].clone(),
+                            flags,
+                            None,
+                            value.to_vec().into(),
+                        ),
+                    ))
                 }
             }
             _ => Err(nom::Err::Failure(nom::error::Error::new(
@@ -138,7 +146,12 @@ mod test {
             cas: true,
             key: false,
         });
-        let response = Response::found("Hello".as_bytes().to_vec().into(), 0, Some(0), "World".as_bytes().to_vec().into());
+        let response = Response::found(
+            "Hello".as_bytes().to_vec().into(),
+            0,
+            Some(0),
+            "World".as_bytes().to_vec().into(),
+        );
 
         let mut buffer = BytesMut::new();
 

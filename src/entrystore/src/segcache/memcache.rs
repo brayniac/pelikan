@@ -11,6 +11,7 @@ use protocol_common::*;
 use protocol_memcache::Value;
 use protocol_memcache::*;
 
+use crate::util::write_u64;
 use std::time::Duration;
 
 impl Execute<Request, Response> for Seg {
@@ -50,11 +51,13 @@ impl Storage for Seg {
                         values.push(Value::new(key.clone(), flags, None, b.into()));
                     }
                     segcache::Value::U64(v) => {
+                        let mut buf = [0u8; 20]; // Max u64 is 20 digits
+                        let len = write_u64(&mut buf, v);
                         values.push(Value::new(
                             key.clone(),
                             flags,
                             None,
-                            format!("{v}").as_bytes().into(),
+                            buf[..len].to_vec().into_boxed_slice(),
                         ));
                     }
                 }
@@ -73,14 +76,21 @@ impl Storage for Seg {
                 let flags = u32::from_be_bytes([o[0], o[1], o[2], o[3]]);
                 match item.value() {
                     segcache::Value::Bytes(b) => {
-                        values.push(Value::new(item.key().into(), flags, Some(item.cas().into()), b.into()));
-                    }
-                    segcache::Value::U64(v) => {
                         values.push(Value::new(
                             item.key().into(),
                             flags,
                             Some(item.cas().into()),
-                            format!("{v}").as_bytes().into(),
+                            b.into(),
+                        ));
+                    }
+                    segcache::Value::U64(v) => {
+                        let mut buf = [0u8; 20]; // Max u64 is 20 digits
+                        let len = write_u64(&mut buf, v);
+                        values.push(Value::new(
+                            item.key().into(),
+                            flags,
+                            Some(item.cas().into()),
+                            buf[..len].to_vec().into_boxed_slice(),
                         ));
                     }
                 }

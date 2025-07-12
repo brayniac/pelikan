@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use super::*;
+use crate::util::{u64_decimal_len, write_u64};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Numeric {
@@ -23,7 +24,7 @@ impl Numeric {
         if self.noreply {
             0
         } else {
-            format!("{}\r\n", self.value).len()
+            u64_decimal_len(self.value) + 2 // +2 for "\r\n"
         }
     }
 }
@@ -31,9 +32,13 @@ impl Numeric {
 impl Compose for Numeric {
     fn compose(&self, session: &mut dyn BufMut) -> usize {
         if !self.noreply {
-            let response = format!("{}\r\n", self.value).into_bytes();
-            session.put_slice(&response);
-            response.len()
+            let mut buf = [0u8; 22]; // Max u64 is 20 digits + "\r\n"
+            let len = write_u64(&mut buf, self.value);
+            buf[len] = b'\r';
+            buf[len + 1] = b'\n';
+            let total_len = len + 2;
+            session.put_slice(&buf[..total_len]);
+            total_len
         } else {
             0
         }

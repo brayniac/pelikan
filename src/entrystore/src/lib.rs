@@ -9,6 +9,7 @@
 
 mod noop;
 mod segcache;
+mod util;
 
 pub use self::noop::*;
 pub use self::segcache::*;

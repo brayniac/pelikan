@@ -132,3 +132,73 @@ pub fn parse_u32(input: &[u8]) -> IResult<&[u8], u32> {
     })?;
     Ok((input, value))
 }
+
+/// Efficiently format a u64 into a byte buffer without allocations.
+/// Returns the number of bytes written.
+#[inline]
+pub fn write_u64(buf: &mut [u8], mut value: u64) -> usize {
+    if value == 0 {
+        buf[0] = b'0';
+        return 1;
+    }
+
+    // Write digits in reverse
+    let mut pos = 0;
+    while value > 0 {
+        buf[pos] = b'0' + (value % 10) as u8;
+        value /= 10;
+        pos += 1;
+    }
+
+    // Reverse the digits
+    buf[..pos].reverse();
+    pos
+}
+
+/// Calculate the number of decimal digits in a u64
+#[inline]
+pub fn u64_decimal_len(mut value: u64) -> usize {
+    if value == 0 {
+        return 1;
+    }
+
+    let mut len = 0;
+    while value > 0 {
+        len += 1;
+        value /= 10;
+    }
+    len
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_write_u64() {
+        let mut buf = [0u8; 20];
+
+        assert_eq!(write_u64(&mut buf, 0), 1);
+        assert_eq!(&buf[..1], b"0");
+
+        assert_eq!(write_u64(&mut buf, 42), 2);
+        assert_eq!(&buf[..2], b"42");
+
+        assert_eq!(write_u64(&mut buf, 12345), 5);
+        assert_eq!(&buf[..5], b"12345");
+
+        assert_eq!(write_u64(&mut buf, u64::MAX), 20);
+        assert_eq!(&buf[..20], b"18446744073709551615");
+    }
+
+    #[test]
+    fn test_u64_decimal_len() {
+        assert_eq!(u64_decimal_len(0), 1);
+        assert_eq!(u64_decimal_len(9), 1);
+        assert_eq!(u64_decimal_len(10), 2);
+        assert_eq!(u64_decimal_len(99), 2);
+        assert_eq!(u64_decimal_len(100), 3);
+        assert_eq!(u64_decimal_len(12345), 5);
+        assert_eq!(u64_decimal_len(u64::MAX), 20);
+    }
+}

@@ -3,6 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use super::*;
+use crate::util::write_u64;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Values {
@@ -84,17 +85,40 @@ impl Compose for Value {
         let data = self.data.as_ref().unwrap();
 
         let prefix = b"VALUE ";
-        let header_fields = if let Some(cas) = self.cas {
-            format!(" {} {} {}\r\n", self.flags, data.len(), cas).into_bytes()
-        } else {
-            format!(" {} {}\r\n", self.flags, data.len()).into_bytes()
-        };
 
+        // Pre-allocate buffer for header fields: space + flags + space + len + optional(space + cas) + CRLF
+        let mut header_buf = [0u8; 64]; // Should be enough for all numeric values
+        let mut pos = 0;
+
+        header_buf[pos] = b' ';
+        pos += 1;
+
+        // Write flags
+        pos += write_u64(&mut header_buf[pos..], self.flags as u64);
+
+        header_buf[pos] = b' ';
+        pos += 1;
+
+        // Write data length
+        pos += write_u64(&mut header_buf[pos..], data.len() as u64);
+
+        // Write optional CAS value
+        if let Some(cas) = self.cas {
+            header_buf[pos] = b' ';
+            pos += 1;
+            pos += write_u64(&mut header_buf[pos..], cas);
+        }
+
+        header_buf[pos] = b'\r';
+        header_buf[pos + 1] = b'\n';
+        pos += 2;
+
+        let header_fields = &header_buf[..pos];
         let size = prefix.len() + self.key.len() + header_fields.len() + data.len() + CRLF.len();
 
         session.put_slice(prefix);
         session.put_slice(&self.key);
-        session.put_slice(&header_fields);
+        session.put_slice(header_fields);
         session.put_slice(data);
         session.put_slice(CRLF);
 
