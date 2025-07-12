@@ -47,19 +47,19 @@ impl Storage for Seg {
                 let flags = u32::from_be_bytes([o[0], o[1], o[2], o[3]]);
                 match item.value() {
                     segcache::Value::Bytes(b) => {
-                        values.push(Value::new(item.key(), flags, None, b));
+                        values.push(Value::new(key.clone(), flags, None, b.into()));
                     }
                     segcache::Value::U64(v) => {
                         values.push(Value::new(
-                            item.key(),
+                            key.clone(),
                             flags,
                             None,
-                            format!("{v}").as_bytes(),
+                            format!("{v}").as_bytes().into(),
                         ));
                     }
                 }
             } else {
-                values.push(Value::none(key));
+                values.push(Value::none(key.clone()));
             }
         }
         Values::new(values.into_boxed_slice()).into()
@@ -73,19 +73,19 @@ impl Storage for Seg {
                 let flags = u32::from_be_bytes([o[0], o[1], o[2], o[3]]);
                 match item.value() {
                     segcache::Value::Bytes(b) => {
-                        values.push(Value::new(item.key(), flags, Some(item.cas().into()), b));
+                        values.push(Value::new(item.key().into(), flags, Some(item.cas().into()), b.into()));
                     }
                     segcache::Value::U64(v) => {
                         values.push(Value::new(
-                            item.key(),
+                            item.key().into(),
                             flags,
                             Some(item.cas().into()),
-                            format!("{v}").as_bytes(),
+                            format!("{v}").as_bytes().into(),
                         ));
                     }
                 }
             } else {
-                values.push(Value::none(key));
+                values.push(Value::none(key.clone()));
             }
         }
         Values::new(values.into_boxed_slice()).into()

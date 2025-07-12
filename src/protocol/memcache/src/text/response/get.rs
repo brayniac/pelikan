@@ -91,7 +91,7 @@ mod tests {
             cas: false,
         };
 
-        let resp = Response::values(vec![Value::new(b"key", 0, None, b"val")].into_boxed_slice());
+        let resp = Response::values(vec![Value::new(b"key".to_vec().into(), 0, None, b"val".to_vec().into())].into_boxed_slice());
 
         // Verify that the response is composed correctly.
         let mut buffer = BytesMut::new();

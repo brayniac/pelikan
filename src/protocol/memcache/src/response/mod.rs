@@ -97,7 +97,7 @@ impl Response {
         Self::Values(Values { values })
     }
 
-    pub fn found(key: &[u8], flags: u32, cas: Option<u64>, data: &[u8]) -> Self {
+    pub fn found(key: Box<[u8]>, flags: u32, cas: Option<u64>, data: Box<[u8]>) -> Self {
         Self::Values(Values {
             values: vec![Value::new(key, flags, cas, data)].into(),
         })

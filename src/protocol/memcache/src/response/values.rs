@@ -28,18 +28,18 @@ pub struct Value {
 }
 
 impl Value {
-    pub fn new(key: &[u8], flags: u32, cas: Option<u64>, data: &[u8]) -> Self {
+    pub fn new(key: Box<[u8]>, flags: u32, cas: Option<u64>, data: Box<[u8]>) -> Self {
         Self {
-            key: key.to_owned().into_boxed_slice(),
+            key,
             flags,
             cas,
-            data: Some(data.to_owned().into_boxed_slice()),
+            data: Some(data),
         }
     }
 
-    pub fn none(key: &[u8]) -> Self {
+    pub fn none(key: Box<[u8]>) -> Self {
         Self {
-            key: key.to_owned().into_boxed_slice(),
+            key,
             flags: 0,
             cas: None,
             data: None,
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn parse() {
         // simple single value response
-        let value_0 = Value::new(b"0", 0, None, b"1");
+        let value_0 = Value::new(b"0".to_vec().into(), 0, None, b"1".to_vec().into());
         assert_eq!(
             response(b"VALUE 0 0 1\r\n1\r\nEND\r\n"),
             Ok((
@@ -204,7 +204,7 @@ mod tests {
         );
 
         // binary data for the value
-        let value_1 = Value::new(b"1", 1, None, b"\0");
+        let value_1 = Value::new(b"1".to_vec().into(), 1, None, b"\0".to_vec().into());
         assert_eq!(
             response(b"VALUE 1 1 1\r\n\0\r\nEND\r\n"),
             Ok((
@@ -223,7 +223,7 @@ mod tests {
         );
 
         // a value with zero-length data and a cas value
-        let value_2 = Value::new(b"2", 100, Some(42), b"");
+        let value_2 = Value::new(b"2".to_vec().into(), 100, Some(42), b"".to_vec().into());
         assert_eq!(
             response(b"VALUE 2 100 0 42\r\n\r\nEND\r\n"),
             Ok((&b""[..], Response::values(vec![value_2].into_boxed_slice()),))
