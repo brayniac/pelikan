@@ -19,7 +19,6 @@ impl TextProtocol {
         crate::response(input)
     }
 
-    #[allow(unused_variables)]
     pub(crate) fn compose_get_response(
         &self,
         request: &Get,
@@ -49,8 +48,7 @@ impl TextProtocol {
                     }
                 }
                 _ => {
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
+                    return Err(std::io::Error::other(
                         "unexpected response",
                     ));
                 }

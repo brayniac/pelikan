@@ -19,10 +19,9 @@ impl TextProtocol {
         crate::response(input)
     }
 
-    #[allow(unused_variables)]
     pub(crate) fn compose_set_response(
         &self,
-        request: &Set,
+        _request: &Set,
         response: &Response,
         buffer: &mut dyn BufMut,
     ) -> std::result::Result<usize, std::io::Error> {

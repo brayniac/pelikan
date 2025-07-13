@@ -3,7 +3,8 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::*;
-use protocol_common::{BufMut, Parse, ParseOk};
+use protocol_common::{BufMut, Compose, Parse, ParseOk};
+use crate::compose_context::{ComposeContext, ComposeWithContext};
 
 mod client_error;
 mod deleted;
@@ -258,6 +259,27 @@ impl Parse<Response> for ResponseParser {
             Ok((input, response)) => Ok(ParseOk::new(response, buffer.len() - input.len())),
             Err(Err::Incomplete(_)) => Err(std::io::Error::from(std::io::ErrorKind::WouldBlock)),
             Err(_) => Err(std::io::Error::from(std::io::ErrorKind::InvalidInput)),
+        }
+    }
+}
+
+// Implement ComposeWithContext for Response
+impl ComposeWithContext for Response {
+    fn compose_with_context(
+        &self,
+        _context: &ComposeContext,
+        buffer: &mut dyn BufMut,
+    ) -> usize {
+        // For text protocol, most responses don't need context
+        match self {
+            Response::Values(_) => {
+                // Values response composition is already self-contained
+                self.compose(buffer)
+            }
+            _ => {
+                // All other text responses are self-contained
+                self.compose(buffer)
+            }
         }
     }
 }

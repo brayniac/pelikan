@@ -11,6 +11,7 @@ pub mod text;
 pub use binary::BinaryProtocol;
 pub use text::TextProtocol;
 
+mod compose_context;
 mod request;
 mod response;
 mod storage;
@@ -18,6 +19,7 @@ mod util;
 
 pub(crate) use util::*;
 
+pub use compose_context::*;
 pub use request::*;
 pub use response::*;
 pub use storage::*;
