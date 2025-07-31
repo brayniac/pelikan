@@ -12,6 +12,12 @@ use std::path::Path;
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::OpenOptionsExt;
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+use libc;
+
+#[cfg(target_os = "macos")]
+use std::os::unix::io::AsRawFd;
+
 use memmap2::{MmapMut, MmapOptions};
 
 const PAGE_SIZE: usize = 4096;
@@ -395,9 +401,9 @@ impl Datapool for MmapFile {
 /// local disk (eg: NVMe), but it is not strictly required. Unlike simply using
 /// mmap on the file, this ensures all the data is kept resident in-memory.
 ///
-/// This currently attempts to use `O_DIRECT` on Linux to avoid the page cache.
-/// No attempts are made to avoid similar pollution on other operating systems
-/// at this time. Further, there are situations in which even with `O_DIRECT`,
+/// This uses `O_DIRECT` on Linux and `F_NOCACHE` on macOS to bypass the page
+/// cache and avoid cache pollution. On other operating systems, no special
+/// flags are used. Further, there are situations in which even with these flags,
 /// the operating system may still buffer access to/from the file. No effort is
 /// made to detect, avoid, or handle this situation.
 pub struct FileBackedMemory {
@@ -431,23 +437,31 @@ impl FileBackedMemory {
         };
 
         // create a new file with read and write access
-        // #[cfg(target_os = "linux")]
-        // let mut file = OpenOptions::new()
-        //     .create_new(false)
-        //     .custom_flags(libc::O_DIRECT)
-        //     .read(true)
-        //     .write(true)
-        //     .open(path)?;
+        // on linux, use O_DIRECT to avoid the page cache
+        #[cfg(target_os = "linux")]
+        let mut file = OpenOptions::new()
+            .create_new(false)
+            .custom_flags(libc::O_DIRECT)
+            .read(true)
+            .write(true)
+            .open(path)?;
 
-        // #[cfg(not(target_os = "linux"))]
-
-        // TODO(brian): this needs to be fixed
-
+        // on non-linux systems we don't use O_DIRECT
+        #[cfg(not(target_os = "linux"))]
         let mut file = OpenOptions::new()
             .create_new(false)
             .read(true)
             .write(true)
             .open(path)?;
+
+        // on macOS, use F_NOCACHE to bypass buffer cache
+        #[cfg(target_os = "macos")]
+        {
+            let fd = file.as_raw_fd();
+            unsafe {
+                libc::fcntl(fd, libc::F_NOCACHE, 1);
+            }
+        }
 
         // make sure the file size matches the expected size
         if file.metadata()?.len() != file_total_size.end as u64 {
@@ -557,23 +571,29 @@ impl FileBackedMemory {
         };
 
         // create a new file with read and write access
-        // #[cfg(target_os = "linux")]
-        // let mut file = OpenOptions::new()
-        //     .create_new(true)
-        //     .custom_flags(libc::O_DIRECT)
-        //     .read(true)
-        //     .write(true)
-        //     .open(path)?;
+        #[cfg(target_os = "linux")]
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .custom_flags(libc::O_DIRECT)
+            .read(true)
+            .write(true)
+            .open(path)?;
 
-        // #[cfg(not(target_os = "linux"))]
-
-        // TODO(brian): this needs to be fixed
-
+        #[cfg(not(target_os = "linux"))]
         let mut file = OpenOptions::new()
             .create_new(true)
             .read(true)
             .write(true)
             .open(path)?;
+
+        // On macOS, use F_NOCACHE to bypass buffer cache
+        #[cfg(target_os = "macos")]
+        {
+            let fd = file.as_raw_fd();
+            unsafe {
+                libc::fcntl(fd, libc::F_NOCACHE, 1);
+            }
+        }
 
         // grow the file to match the total size
         file.set_len(file_total_size.end as u64)?;
